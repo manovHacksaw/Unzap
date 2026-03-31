@@ -10,6 +10,7 @@ import {
   ChevronRight,
   AlertCircle,
   Loader2,
+  Code2,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -282,176 +283,238 @@ export default function ContractLabPage() {
   }[compileState.status];
 
   return (
-    <div className="flex h-full">
-      {/* ── LEFT: Templates + compile ── */}
-      <div className="flex flex-col w-64 flex-shrink-0 border-r border-neutral-900 overflow-y-auto">
-        {/* Header */}
-        <div className="px-5 py-5 border-b border-neutral-900">
-          <div className="text-[10px] font-mono text-neutral-500 tracking-widest mb-1">[ CONTRACT LAB ]</div>
-          <h1 className="text-white font-bold text-base tracking-tight">Cairo Compiler</h1>
-          <p className="text-neutral-500 text-xs mt-1">Write, compile, inspect</p>
+    <div className="flex h-full flex-col bg-[#0a0a0a]">
+      {/* ── TOP BREADCRUMB/HEADER ── */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-900 bg-[#050505] flex-shrink-0">
+        <div className="flex items-center gap-2 text-[10px] font-mono text-neutral-600">
+          <span>Studio</span>
+          <span className="text-neutral-800">/</span>
+          <span className="text-amber-400">Cairo Compiler</span>
         </div>
-
-        {/* Templates */}
-        <div className="px-4 py-4 border-b border-neutral-900 space-y-1.5">
-          <div className="text-[10px] font-mono text-neutral-600 tracking-widest mb-3">TEMPLATES</div>
-          {TEMPLATES.map(({ id, label, desc }) => (
-            <button
-              key={id}
-              onClick={() => selectTemplate(id)}
-              className={clsx(
-                "w-full flex items-center gap-3 px-3 py-2.5 border text-left transition-all",
-                templateId === id
-                  ? "border-amber-500/40 bg-amber-500/5 text-white"
-                  : "border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-700"
-              )}
-            >
-              <FlaskConical
-                className={clsx(
-                  "w-4 h-4 flex-shrink-0",
-                  templateId === id ? "text-amber-400" : "text-neutral-700"
-                )}
-                strokeWidth={1.5}
-              />
-              <div className="min-w-0">
-                <div className="text-xs font-medium truncate">{label}</div>
-                <div className="text-[10px] text-neutral-600 truncate">{desc}</div>
-              </div>
-              {templateId === id && (
-                <ChevronRight className="w-3 h-3 text-amber-500 ml-auto flex-shrink-0" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Status */}
-        {statusLabel && (
-          <div className="px-5 py-3 border-b border-neutral-900">
-            <div className="text-[10px] font-mono">{statusLabel}</div>
-          </div>
-        )}
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Compile button */}
-        <div className="px-4 py-4 border-t border-neutral-900">
-          <button
-            onClick={compile}
-            disabled={compileState.status === "compiling"}
-            className="w-full flex items-center justify-center gap-2 py-3 text-xs font-bold uppercase tracking-widest text-black bg-amber-400 hover:bg-amber-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            {compileState.status === "compiling" ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Compiling…
-              </>
-            ) : (
-              <>
-                <Zap className="w-3.5 h-3.5" />
-                Compile →
-              </>
-            )}
-          </button>
-          <p className="text-center text-[10px] text-neutral-700 mt-2 font-mono">
-            scarb build · sepolia
-          </p>
+        <div className="flex items-center gap-4 text-[10px] text-neutral-600">
+          <span>{statusLabel || "Ready"}</span>
         </div>
       </div>
 
-      {/* ── MAIN: Editor + output ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Cairo editor */}
-        <div className="flex-1 flex flex-col overflow-hidden border-b border-neutral-900">
-          {/* Editor toolbar */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-900 flex-shrink-0">
-            <span className="text-[10px] font-mono text-neutral-600 tracking-widest">src/lib.cairo</span>
-            <CopyButton text={source} />
+      {/* ── MAIN FLEX CONTAINER ── */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* ── LEFT PANEL: Templates ── */}
+        <div className="flex flex-col w-72 flex-shrink-0 border-r border-neutral-900 overflow-hidden bg-[#0a0a0a]">
+          {/* Panel Header */}
+          <div className="px-5 py-4 border-b border-neutral-900 bg-[#050505] flex-shrink-0">
+            <h2 className="text-white font-bold text-sm tracking-tight">Templates</h2>
+            <p className="text-neutral-600 text-[10px] mt-1">Select a contract template to start</p>
           </div>
 
-          {/* Textarea */}
-          <textarea
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            spellCheck={false}
-            className="flex-1 w-full resize-none bg-[#030303] text-neutral-300 font-mono text-[12px] leading-relaxed px-5 py-4 focus:outline-none caret-amber-400 selection:bg-amber-500/20"
-            style={{ tabSize: 4 }}
-          />
+          {/* Templates List */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+            {TEMPLATES.map(({ id, label, desc }) => (
+              <button
+                key={id}
+                onClick={() => selectTemplate(id)}
+                className={clsx(
+                  "w-full flex items-start gap-3 px-4 py-3 border rounded-lg transition-all text-left group",
+                  templateId === id
+                    ? "border-amber-500/60 bg-gradient-to-r from-amber-500/10 to-amber-500/5 shadow-sm shadow-amber-500/20"
+                    : "border-neutral-800 text-neutral-500 hover:border-neutral-700 hover:bg-white/[0.02] hover:text-neutral-300"
+                )}
+              >
+                <div className={clsx(
+                  "w-8 h-8 rounded border flex items-center justify-center flex-shrink-0 transition-all mt-0.5",
+                  templateId === id
+                    ? "border-amber-500/60 bg-amber-500/10"
+                    : "border-neutral-800 group-hover:border-neutral-700"
+                )}>
+                  <FlaskConical
+                    className={clsx(
+                      "w-4 h-4",
+                      templateId === id ? "text-amber-400" : "text-neutral-700"
+                    )}
+                    strokeWidth={1.5}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className={clsx("text-sm font-semibold", templateId === id ? "text-white" : "")}>
+                    {label}
+                  </div>
+                  <div className="text-[10px] text-neutral-700 mt-0.5 leading-tight">{desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-neutral-900" />
+
+          {/* Compile Section */}
+          <div className="px-4 py-4 bg-[#050505] flex flex-col gap-3 flex-shrink-0">
+            <div>
+              <h3 className="text-white font-semibold text-xs tracking-tight mb-2">Build Contract</h3>
+              <button
+                onClick={compile}
+                disabled={compileState.status === "compiling"}
+                className={clsx(
+                  "w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-widest transition-all duration-200",
+                  compileState.status === "compiling"
+                    ? "bg-amber-400/70 text-black/70 cursor-not-allowed"
+                    : "bg-amber-400 text-black hover:bg-amber-300 shadow-lg shadow-amber-400/30 active:scale-95"
+                )}
+              >
+                {compileState.status === "compiling" ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Building…
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4" />
+                    Build
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Status Badge */}
+            <div className={clsx(
+              "px-3 py-2 rounded border text-[10px] font-mono flex items-center gap-2",
+              compileState.status === "success"
+                ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-400"
+                : compileState.status === "error"
+                  ? "border-red-500/40 bg-red-500/5 text-red-400"
+                  : compileState.status === "compiling"
+                    ? "border-amber-500/40 bg-amber-500/5 text-amber-400"
+                    : "border-neutral-800 bg-neutral-900/30 text-neutral-600"
+            )}>
+              <div className={clsx(
+                "w-1.5 h-1.5 rounded-full",
+                compileState.status === "success"
+                  ? "bg-emerald-400 animate-pulse"
+                  : compileState.status === "error"
+                    ? "bg-red-400"
+                    : compileState.status === "compiling"
+                      ? "bg-amber-400 animate-spin"
+                      : "bg-neutral-600"
+              )} />
+              <span>
+                {compileState.status === "idle" && "Ready to build"}
+                {compileState.status === "compiling" && "Compiling…"}
+                {compileState.status === "success" && "Build successful"}
+                {compileState.status === "error" && `${(compileState as any).errors?.length ?? 0} error(s)`}
+              </span>
+            </div>
+
+            <div className="text-[9px] text-neutral-700 font-mono text-center">
+              Scarb · Sepolia Testnet
+            </div>
+          </div>
         </div>
 
-        {/* Output panel */}
-        <div className="flex-shrink-0 flex flex-col" style={{ height: 260 }}>
-          {/* Tabs */}
-          <div className="flex items-center border-b border-neutral-900 bg-[#0a0a0a]">
-            <span className="text-[10px] font-mono text-neutral-700 tracking-widest px-4">OUTPUT</span>
-            <div className="flex">
-              {outputTabs.map(({ id, label, available }) => (
-                <button
-                  key={id}
-                  onClick={() => available && setActiveTab(id)}
-                  disabled={!available}
-                  className={clsx(
-                    "px-4 py-2.5 text-[10px] font-mono tracking-wider border-b-2 transition-colors",
-                    activeTab === id && available
-                      ? id === "errors"
-                        ? "border-red-500 text-red-400"
-                        : "border-amber-500 text-amber-400"
-                      : available
-                        ? "border-transparent text-neutral-500 hover:text-neutral-300"
-                        : "border-transparent text-neutral-800 cursor-not-allowed"
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+        {/* ── RIGHT PANEL: Editor + Output ── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* ── EDITOR SECTION ── */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Editor Toolbar */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-900 bg-[#050505] flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Code2 className="w-4 h-4 text-neutral-600" strokeWidth={1.5} />
+                  <span className="text-[10px] font-mono text-neutral-600 tracking-widest">src/lib.cairo</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <CopyButton text={source} />
+              </div>
             </div>
-            <div className="ml-auto px-4">
-              {content && <CopyButton text={content} />}
-            </div>
+
+            {/* Editor */}
+            <textarea
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              spellCheck={false}
+              className="flex-1 w-full resize-none bg-[#030303] text-neutral-300 font-mono text-[12px] leading-relaxed px-5 py-4 focus:outline-none caret-amber-400 selection:bg-amber-500/20"
+              style={{ tabSize: 4 }}
+            />
           </div>
 
-          {/* Output content */}
-          <div className="flex-1 overflow-auto bg-[#030303]">
-            <AnimatePresence mode="wait">
-              {compileState.status === "idle" ? (
-                <motion.div
-                  key="idle"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center justify-center h-full"
-                >
-                  <span className="text-[11px] font-mono text-neutral-700">
-                    Press <span className="text-amber-600">Compile →</span> to build your contract
-                  </span>
-                </motion.div>
-              ) : compileState.status === "compiling" ? (
-                <motion.div
-                  key="compiling"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center justify-center h-full gap-2"
-                >
-                  <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
-                  <span className="text-[11px] font-mono text-neutral-600">Running scarb build…</span>
-                </motion.div>
-              ) : content ? (
-                <motion.pre
-                  key={activeTab}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className={clsx(
-                    "px-5 py-4 text-[11px] font-mono leading-relaxed whitespace-pre-wrap",
-                    activeTab === "errors" ? "text-red-400" : "text-amber-400/90"
-                  )}
-                >
-                  {content}
-                </motion.pre>
-              ) : null}
-            </AnimatePresence>
+          {/* ── OUTPUT PANEL ── */}
+          <div className="flex-shrink-0 flex flex-col border-t border-neutral-900" style={{ height: 280 }}>
+            {/* Output Header + Tabs */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-900 bg-[#050505] flex-shrink-0">
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-mono text-neutral-600 tracking-widest font-bold">OUTPUT</span>
+                <div className="flex items-center gap-1 border border-neutral-800 rounded bg-neutral-900/40 p-0.5">
+                  {outputTabs.map(({ id, label, available }) => (
+                    <button
+                      key={id}
+                      onClick={() => available && setActiveTab(id)}
+                      disabled={!available}
+                      className={clsx(
+                        "px-3 py-1.5 text-[9px] font-mono tracking-wider rounded transition-colors",
+                        activeTab === id && available
+                          ? id === "errors"
+                            ? "bg-red-500/20 text-red-400 border border-red-500/40"
+                            : "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                          : available
+                            ? "text-neutral-500 hover:text-neutral-300 hover:bg-white/5"
+                            : "text-neutral-800 cursor-not-allowed"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                {content && <CopyButton text={content} />}
+              </div>
+            </div>
+
+            {/* Output Content */}
+            <div className="flex-1 overflow-auto bg-[#030303]">
+              <AnimatePresence mode="wait">
+                {compileState.status === "idle" ? (
+                  <motion.div
+                    key="idle"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center justify-center h-full"
+                  >
+                    <div className="text-center">
+                      <div className="text-[11px] font-mono text-neutral-700">
+                        Build your contract to see the output
+                      </div>
+                      <div className="text-[10px] text-neutral-800 mt-2">Select a template or write your own Cairo code</div>
+                    </div>
+                  </motion.div>
+                ) : compileState.status === "compiling" ? (
+                  <motion.div
+                    key="compiling"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center justify-center h-full gap-3"
+                  >
+                    <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+                    <span className="text-[11px] font-mono text-neutral-600">Running scarb build…</span>
+                  </motion.div>
+                ) : content ? (
+                  <motion.pre
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className={clsx(
+                      "px-5 py-4 text-[11px] font-mono leading-relaxed whitespace-pre-wrap",
+                      activeTab === "errors" ? "text-red-400" : "text-amber-400/90"
+                    )}
+                  >
+                    {content}
+                  </motion.pre>
+                ) : null}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>

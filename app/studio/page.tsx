@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function StudioRoot() {
-  redirect("/studio/playground");
+  redirect("/studio/contract-lab");
 }
