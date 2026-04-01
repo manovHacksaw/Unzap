@@ -4,13 +4,19 @@ import { useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-function Particles() {
-  const meshRef = useRef<THREE.Points>(null);
+interface ParticlesProps {
+  isReacting?: boolean;
+}
 
-  const { positions, colors } = useMemo(() => {
-    const count = 8000;
+function Particles({ isReacting }: ParticlesProps) {
+  const meshRef = useRef<THREE.Points>(null);
+  const materialRef = useRef<THREE.PointsMaterial>(null);
+
+  const { positions, colors, originalRadii } = useMemo(() => {
+    const count = 6000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
+    const originalRadii = new Float32Array(count);
 
     const goldColor = new THREE.Color("#f59e0b");
     const amberColor = new THREE.Color("#d97706");
@@ -18,24 +24,18 @@ function Particles() {
     const brightGold = new THREE.Color("#fbbf24");
 
     for (let i = 0; i < count; i++) {
-      // Fibonacci sphere distribution for even spread
       const phi = Math.acos(1 - (2 * (i + 0.5)) / count);
       const theta = Math.PI * (1 + Math.sqrt(5)) * i;
 
-      // Radius varies: dense core, scattered outer shell
       const baseRadius = 2.2;
-      const noise = Math.random();
-      // More particles near the core, fewer at edges
-      const radiusVariance = noise < 0.7
-        ? baseRadius * (0.85 + Math.random() * 0.2)
-        : baseRadius * (1.0 + Math.random() * 0.4);
+      const radiusVariance = baseRadius * (0.95 + Math.random() * 0.1);
+      originalRadii[i] = radiusVariance;
 
       positions[i * 3] = radiusVariance * Math.sin(phi) * Math.cos(theta);
       positions[i * 3 + 1] = radiusVariance * Math.cos(phi);
       positions[i * 3 + 2] = radiusVariance * Math.sin(phi) * Math.sin(theta);
 
-      // Color gradient: white/bright at core, amber/gold at edges
-      const distFromCenter = radiusVariance / (baseRadius * 1.4);
+      const distFromCenter = radiusVariance / (baseRadius * 1.1);
       let color: THREE.Color;
       if (distFromCenter < 0.7) {
         color = whiteColor.clone().lerp(brightGold, distFromCenter * 1.4);
@@ -50,11 +50,12 @@ function Particles() {
       colors[i * 3 + 2] = color.b;
     }
 
-    return { positions, colors };
+    return { positions, colors, originalRadii };
   }, []);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (meshRef.current) {
+      // Constant rotation
       meshRef.current.rotation.y += delta * 0.18;
       meshRef.current.rotation.x += delta * 0.03;
     }
@@ -73,6 +74,7 @@ function Particles() {
         />
       </bufferGeometry>
       <pointsMaterial
+        ref={materialRef}
         size={0.022}
         vertexColors
         transparent
@@ -85,15 +87,18 @@ function Particles() {
   );
 }
 
-export default function ParticleSphere() {
+export default function ParticleSphere({ isReacting }: { isReacting?: boolean }) {
   return (
-    <Canvas
-      camera={{ position: [0, 0, 6], fov: 60 }}
-      style={{ background: "transparent" }}
-      gl={{ antialias: true, alpha: true }}
-    >
-      <ambientLight intensity={0.5} />
-      <Particles />
-    </Canvas>
+    <div className="w-full h-full relative">
+      <Canvas
+        camera={{ position: [0, 0, 6], fov: 60 }}
+        style={{ background: "transparent" }}
+        gl={{ antialias: true, alpha: true }}
+        dpr={[1, 2]} // Performance optimization for high-DPI screens
+      >
+        <ambientLight intensity={0.5} />
+        <Particles isReacting={isReacting} />
+      </Canvas>
+    </div>
   );
 }

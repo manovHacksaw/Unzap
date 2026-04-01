@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   StarkZap,
   OnboardStrategy,
   accountPresets,
   getPresets,
-  ChainId,
   Amount,
 } from "starkzap";
 import { usePrivy } from "@privy-io/react-auth";
+import { useNetwork } from "@/lib/NetworkContext";
+import { getNetworkConfig } from "@/lib/network-config";
 import {
   Wallet,
   Zap,
@@ -25,15 +26,8 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 
-// ── SDK instance ──────────────────────────────────────────────────────────────
-const sdk = new StarkZap({
-  network: "sepolia",
-  paymaster: {
-    headers: {
-      "x-paymaster-api-key": process.env.NEXT_PUBLIC_AVNU_API_KEY!,
-    },
-  },
-});
+// ── Wallet type helper ────────────────────────────────────────────────────────
+type SzWalletType = Awaited<ReturnType<StarkZap["onboard"]>>["wallet"];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Action = "pay" | "sign" | "send";
@@ -141,8 +135,21 @@ function CopyButton({ text }: { text: string }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function PlaygroundPage() {
   const { login, logout, authenticated, getAccessToken, user } = usePrivy();
+  const { network } = useNetwork();
+  const netConfig = useMemo(() => getNetworkConfig(network), [network]);
+  const sdkRef = useRef<StarkZap | null>(null);
+  useEffect(() => {
+    sdkRef.current = new StarkZap({
+      network: netConfig.network,
+      paymaster: {
+        headers: {
+          "x-paymaster-api-key": process.env.NEXT_PUBLIC_AVNU_API_KEY!,
+        },
+      },
+    });
+  }, [netConfig.network]);
 
-  const [wallet, setWallet] = useState<Awaited<ReturnType<typeof sdk.onboard>>["wallet"] | null>(null);
+  const [wallet, setWallet] = useState<SzWalletType | null>(null);
   const [balance, setBalance]     = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
 
@@ -171,7 +178,7 @@ export default function PlaygroundPage() {
     setConnecting(true);
     try {
       const accessToken = await getAccessToken();
-      const { wallet: w } = await sdk.onboard({
+      const { wallet: w } = await sdkRef.current!.onboard({
         strategy: OnboardStrategy.Privy,
         privy: {
           resolve: async () => {
@@ -192,7 +199,7 @@ export default function PlaygroundPage() {
         deploy: "if_needed",
       });
       setWallet(w);
-      const STRK = getPresets(ChainId.SEPOLIA).STRK;
+      const STRK = getPresets(netConfig.chainId).STRK;
       const bal  = await w.balanceOf(STRK);
       setBalance(bal.toFormatted());
     } catch (e) {
@@ -247,8 +254,8 @@ export default function PlaygroundPage() {
         setResult(JSON.stringify(sig, null, 2));
       } else {
         // Pay / Send transaction flow
-        const STRK   = getPresets(ChainId.SEPOLIA).STRK;
-        const ETH    = getPresets(ChainId.SEPOLIA).ETH;
+        const STRK   = getPresets(netConfig.chainId).STRK;
+        const ETH    = getPresets(netConfig.chainId).ETH;
         const token  = action === "pay" ? STRK : ETH;
         const target = toAddress.trim() || wallet.address.toString();
 
@@ -306,7 +313,7 @@ export default function PlaygroundPage() {
         <div className="px-6 py-5 border-b border-neutral-900">
           <div className="text-xs font-mono text-neutral-500 tracking-widest mb-1">[ PLAYGROUND ]</div>
           <h1 className="text-white font-bold text-base tracking-tight">Live Execution</h1>
-          <p className="text-neutral-500 text-xs mt-1">Execute Starkzap actions on Sepolia</p>
+          <p className="text-neutral-500 text-xs mt-1">Execute Starkzap actions on {netConfig.label}</p>
         </div>
 
         {/* Wallet */}
@@ -327,7 +334,7 @@ export default function PlaygroundPage() {
                 </button>
               </div>
               <a
-                href={`https://sepolia.voyager.online/contract/${wallet.address.toString()}`}
+                href={`${netConfig.voyager}/contract/${wallet.address.toString()}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between gap-2 font-mono text-[11px] text-neutral-400 bg-[#0a0a0a] border border-neutral-800 px-2.5 py-1.5 hover:border-neutral-700 hover:text-neutral-300 transition-colors group"
@@ -461,7 +468,7 @@ export default function PlaygroundPage() {
             </div>
             {txHash && (
               <a
-                href={`https://sepolia.voyager.online/tx/${txHash}`}
+                href={`${netConfig.voyager}/tx/${txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-[11px] text-amber-500 hover:text-amber-400 transition-colors"

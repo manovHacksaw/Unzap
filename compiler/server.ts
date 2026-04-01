@@ -35,15 +35,25 @@ interface CompileError {
   col: number;
 }
 
+function stripAnsi(value: string): string {
+  return value.replace(/\u001b\[[0-9;]*m/g, "");
+}
+
 function parseScarbErrors(stderr: string): CompileError[] {
+  const normalized = stripAnsi(stderr);
   const errors: CompileError[] = [];
-  const lines = stderr.split("\n");
+  const lines = normalized.split("\n");
 
   for (let i = 0; i < lines.length; i++) {
-    const errorMatch = lines[i].match(/^error(?:\[E\d+\])?: (.+)/);
+    const errorMatch = lines[i].match(/^\s*error(?:\[E\d+\])?:\s+(.+)/);
     if (!errorMatch) continue;
 
-    const locMatch = lines[i + 1]?.match(/--> src\/lib\.cairo:(\d+):(\d+)/);
+    let locMatch: RegExpMatchArray | null = null;
+    for (let j = i + 1; j <= Math.min(i + 5, lines.length - 1); j++) {
+      locMatch = lines[j].match(/-->\s+.*src\/lib\.cairo:(\d+):(\d+)/);
+      if (locMatch) break;
+    }
+
     errors.push({
       message: errorMatch[1].trim(),
       line: locMatch ? parseInt(locMatch[1], 10) : 0,
@@ -53,7 +63,17 @@ function parseScarbErrors(stderr: string): CompileError[] {
 
   return errors.length > 0
     ? errors
-    : [{ message: stderr.trim() || "Unknown compilation error", line: 0, col: 0 }];
+    : [{ message: normalized.trim() || "Unknown compilation error", line: 0, col: 0 }];
+}
+
+function parseFallbackLocation(logs: string): { line: number; col: number } | null {
+  const normalized = stripAnsi(logs);
+  const match = normalized.match(/-->\s+.*src\/lib\.cairo:(\d+):(\d+)/);
+  if (!match) return null;
+  return {
+    line: parseInt(match[1], 10),
+    col: parseInt(match[2], 10),
+  };
 }
 
 // ── Core compile logic ────────────────────────────────────────────────────────
@@ -93,10 +113,22 @@ async function compile(source: string): Promise<CompileResult> {
     // ABI lives inside the Sierra JSON
     return { sierra, casm, abi: (sierra.abi as object[]) ?? [], logs };
   } catch (err: unknown) {
-    const errorLogs = (err as { stdout?: string }).stdout || "" + (err as { stderr?: string }).stderr || "";
+    const stdout = (err as { stdout?: string }).stdout ?? "";
+    const stderr = (err as { stderr?: string }).stderr ?? "";
+    const errorLogs = stripAnsi(`${stdout}${stderr}`);
+    const parsedErrors = parseScarbErrors(stderr || stdout || String(err));
+    const fallbackLocation = parseFallbackLocation(errorLogs);
+    const enrichedErrors =
+      fallbackLocation && parsedErrors.every((item) => item.line === 0 && item.col === 0)
+        ? parsedErrors.map((item, index) =>
+            index === 0
+              ? { ...item, line: fallbackLocation.line, col: fallbackLocation.col }
+              : item
+          )
+        : parsedErrors;
     // If it's a compilation error, re-throw with logs for the handler
     throw {
-      errors: parseScarbErrors((err as { stderr?: string }).stderr || String(err)),
+      errors: enrichedErrors,
       logs: errorLogs || String(err)
     };
   } finally {
