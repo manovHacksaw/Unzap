@@ -1,63 +1,78 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-interface ParticlesProps {
-  isReacting?: boolean;
+function generateParticleData() {
+  const count = 6000;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const originalRadii = new Float32Array(count);
+
+  const goldColor = new THREE.Color("#f59e0b");
+  const amberColor = new THREE.Color("#d97706");
+  const whiteColor = new THREE.Color("#ffffff");
+  const brightGold = new THREE.Color("#fbbf24");
+
+  // Use a simple seeded random for purity
+  let seed = 42;
+  const seededRandom = () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+
+  for (let i = 0; i < count; i++) {
+    const phi = Math.acos(1 - (2 * (i + 0.5)) / count);
+    const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+
+    const baseRadius = 2.2;
+    const radiusVariance = baseRadius * (0.95 + seededRandom() * 0.1);
+    originalRadii[i] = radiusVariance;
+
+    positions[i * 3] = radiusVariance * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = radiusVariance * Math.cos(phi);
+    positions[i * 3 + 2] = radiusVariance * Math.sin(phi) * Math.sin(theta);
+
+    const distFromCenter = radiusVariance / (baseRadius * 1.1);
+    let color: THREE.Color;
+    if (distFromCenter < 0.7) {
+      color = whiteColor.clone().lerp(brightGold, distFromCenter * 1.4);
+    } else if (distFromCenter < 0.9) {
+      color = brightGold.clone().lerp(goldColor, (distFromCenter - 0.7) * 5);
+    } else {
+      color = goldColor.clone().lerp(amberColor, (distFromCenter - 0.9) * 10);
+    }
+
+    colors[i * 3] = color.r;
+    colors[i * 3 + 1] = color.g;
+    colors[i * 3 + 2] = color.b;
+  }
+
+  return { positions, colors, originalRadii };
 }
 
-function Particles({ isReacting }: ParticlesProps) {
+const PARTICLE_DATA = generateParticleData();
+
+function Particles({ isReacting }: { isReacting?: boolean }) {
   const meshRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
 
-  const { positions, colors, originalRadii } = useMemo(() => {
-    const count = 6000;
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-    const originalRadii = new Float32Array(count);
-
-    const goldColor = new THREE.Color("#f59e0b");
-    const amberColor = new THREE.Color("#d97706");
-    const whiteColor = new THREE.Color("#ffffff");
-    const brightGold = new THREE.Color("#fbbf24");
-
-    for (let i = 0; i < count; i++) {
-      const phi = Math.acos(1 - (2 * (i + 0.5)) / count);
-      const theta = Math.PI * (1 + Math.sqrt(5)) * i;
-
-      const baseRadius = 2.2;
-      const radiusVariance = baseRadius * (0.95 + Math.random() * 0.1);
-      originalRadii[i] = radiusVariance;
-
-      positions[i * 3] = radiusVariance * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = radiusVariance * Math.cos(phi);
-      positions[i * 3 + 2] = radiusVariance * Math.sin(phi) * Math.sin(theta);
-
-      const distFromCenter = radiusVariance / (baseRadius * 1.1);
-      let color: THREE.Color;
-      if (distFromCenter < 0.7) {
-        color = whiteColor.clone().lerp(brightGold, distFromCenter * 1.4);
-      } else if (distFromCenter < 0.9) {
-        color = brightGold.clone().lerp(goldColor, (distFromCenter - 0.7) * 5);
-      } else {
-        color = goldColor.clone().lerp(amberColor, (distFromCenter - 0.9) * 10);
-      }
-
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
-    }
-
-    return { positions, colors, originalRadii };
-  }, []);
+  const { positions, colors } = PARTICLE_DATA;
 
   useFrame((state, delta) => {
     if (meshRef.current) {
-      // Constant rotation
-      meshRef.current.rotation.y += delta * 0.18;
+      // Constant rotation + extra when reacting
+      const speed = isReacting ? 0.8 : 0.18;
+      meshRef.current.rotation.y += delta * speed;
       meshRef.current.rotation.x += delta * 0.03;
+
+      if (isReacting) {
+        const pulse = 1 + Math.sin(state.clock.elapsedTime * 15) * 0.05;
+        meshRef.current.scale.set(pulse, pulse, pulse);
+      } else {
+        meshRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+      }
     }
   });
 
@@ -75,7 +90,7 @@ function Particles({ isReacting }: ParticlesProps) {
       </bufferGeometry>
       <pointsMaterial
         ref={materialRef}
-        size={0.022}
+        size={isReacting ? 0.035 : 0.022}
         vertexColors
         transparent
         opacity={0.9}

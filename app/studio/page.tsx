@@ -11,8 +11,6 @@ import {
   FlaskConical,
   Bot,
   ArrowRight,
-  Code,
-  Layers,
   Sparkles,
   Terminal,
 } from "lucide-react";

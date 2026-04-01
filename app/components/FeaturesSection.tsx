@@ -1,9 +1,10 @@
 "use client";
 import { cn } from "../../lib/utils";
 import createGlobe from "cobe";
-import { useEffect, useRef } from "react";
+import React, { useRef, useEffect } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
-import { IconTerminal2, IconEye, IconRocket, IconBrandGithub } from "@tabler/icons-react";
+import { IconTerminal2, IconBrandGithub } from "@tabler/icons-react";
 
 export function FeaturesSection() {
     const features = [
@@ -148,14 +149,30 @@ export const SkeletonThree = () => {
     );
 };
 
+const FEATURE_IMAGES = [
+    "https://images.unsplash.com/photo-1517322048670-4fba75cbbb62?q=80&w=3000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1573790387438-4da905039392?q=80&w=3425&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1555400038-63f5ba517a47?q=80&w=3540&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1554931670-4ebfabf6e7a9?q=80&w=3387&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1546484475-7f7bd55792da?q=80&w=2581&auto=format&fit=crop",
+];
+
+// Seeded random for purity
+const getSeededRotations = (seed: number, count: number) => {
+    let s = seed;
+    return Array.from({ length: count }, () => {
+        s = (s * 16807) % 2147483647;
+        return ((s - 1) / 2147483646) * 20 - 10;
+    });
+};
+
+const ROTATIONS1 = getSeededRotations(42, FEATURE_IMAGES.length);
+const ROTATIONS2 = getSeededRotations(1337, FEATURE_IMAGES.length);
+
 export const SkeletonTwo = () => {
-    const images = [
-        "https://images.unsplash.com/photo-1517322048670-4fba75cbbb62?q=80&w=3000&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1573790387438-4da905039392?q=80&w=3425&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1555400038-63f5ba517a47?q=80&w=3540&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1554931670-4ebfabf6e7a9?q=80&w=3387&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1546484475-7f7bd55792da?q=80&w=2581&auto=format&fit=crop",
-    ];
+    const images = FEATURE_IMAGES;
+    const rotations1 = ROTATIONS1;
+    const rotations2 = ROTATIONS2;
 
     const imageVariants = {
         whileHover: {
@@ -177,17 +194,17 @@ export const SkeletonTwo = () => {
                         variants={imageVariants}
                         key={"images-first" + idx}
                         style={{
-                            rotate: Math.random() * 20 - 10,
+                            rotate: rotations1[idx],
                         }}
                         whileHover="whileHover"
                         whileTap="whileTap"
                         className="mt-4 -mr-4 shrink-0 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 p-1"
                     >
-                        <img
+                        <Image
                             src={image}
                             alt="starknet visualization"
-                            width="500"
-                            height="500"
+                            width={160}
+                            height={160}
                             className="h-20 w-20 shrink-0 rounded-lg object-cover md:h-40 md:w-40 grayscale opacity-50"
                         />
                     </motion.div>
@@ -198,18 +215,18 @@ export const SkeletonTwo = () => {
                     <motion.div
                         key={"images-second" + idx}
                         style={{
-                            rotate: Math.random() * 20 - 10,
+                            rotate: rotations2[idx],
                         }}
                         variants={imageVariants}
                         whileHover="whileHover"
                         whileTap="whileTap"
                         className="mt-4 -mr-4 shrink-0 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 p-1"
                     >
-                        <img
+                        <Image
                             src={image}
                             alt="starknet visualization"
-                            width="500"
-                            height="500"
+                            width={160}
+                            height={160}
                             className="h-20 w-20 shrink-0 rounded-lg object-cover md:h-40 md:w-40 grayscale opacity-50"
                         />
                     </motion.div>
@@ -255,11 +272,11 @@ export const Globe = ({ className }: { className?: string }) => {
                 { location: [37.7595, -122.4367], size: 0.03 },
                 { location: [40.7128, -74.006], size: 0.1 },
             ],
-            onRender: (state: any) => {
+            onRender: (state: { phi: number }) => {
                 state.phi = phi;
                 phi += 0.005;
             },
-        });
+        } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
         return () => {
             globe.destroy();

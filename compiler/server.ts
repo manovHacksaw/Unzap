@@ -150,30 +150,48 @@ async function scarbVersion(): Promise<string> {
 
 // ── CORS headers ──────────────────────────────────────────────────────────────
 
-const CORS: Record<string, string> = {
-  "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  const allowedVar = process.env.ALLOWED_ORIGIN ?? "*";
+  
+  // If set to "*", just reflect back or keep as "*"
+  if (allowedVar === "*") return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  const allowedOrigins = allowedVar.split(",").map(o => o.trim());
+  const allowed = (origin && allowedOrigins.includes(origin)) ? origin : allowedOrigins[0];
+
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Vary": "Origin"
+  };
+}
 
 // ── HTTP server ───────────────────────────────────────────────────────────────
 
+// @ts-expect-error - Bun is a global in the Bun runtime
 const server = Bun.serve({
   port: PORT,
 
   async fetch(req: Request): Promise<Response> {
     const { pathname } = new URL(req.url);
+    const headers = getCorsHeaders(req);
 
     // Preflight
     if (req.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS });
+      return new Response(null, { status: 204, headers });
     }
 
     // GET /health
     if (pathname === "/health" && req.method === "GET") {
       return Response.json(
         { ok: true, scarb: await scarbVersion() },
-        { headers: CORS }
+        { headers }
       );
     }
 
@@ -188,7 +206,7 @@ const server = Bun.serve({
       } catch {
         return Response.json(
           { errors: [{ message: "Body must be JSON with a `source` string field", line: 0, col: 0 }] },
-          { status: 400, headers: CORS }
+          { status: 400, headers }
         );
       }
 
@@ -196,7 +214,7 @@ const server = Bun.serve({
       if (!source.trim()) {
         return Response.json(
           { errors: [{ message: "source is empty", line: 0, col: 0 }] },
-          { status: 400, headers: CORS }
+          { status: 400, headers }
         );
       }
 
@@ -204,14 +222,14 @@ const server = Bun.serve({
       if (Buffer.byteLength(source, "utf8") > MAX_SOURCE_BYTES) {
         return Response.json(
           { errors: [{ message: "Source exceeds 50 KB limit", line: 0, col: 0 }] },
-          { status: 413, headers: CORS }
+          { status: 413, headers }
         );
       }
 
       // Compile
       try {
         const result = await compile(source);
-        return Response.json(result, { headers: CORS });
+        return Response.json(result, { headers });
       } catch (err: unknown) {
         const compilationError = err as { errors: CompileError[]; logs: string };
         return Response.json(
@@ -219,12 +237,12 @@ const server = Bun.serve({
             errors: compilationError.errors || [{ message: String(err), line: 0, col: 0 }],
             logs: compilationError.logs || String(err)
           },
-          { status: 422, headers: CORS }
+          { status: 422, headers }
         );
       }
     }
 
-    return new Response("Not found", { status: 404, headers: CORS });
+    return new Response("Not found", { status: 404, headers });
   },
 });
 

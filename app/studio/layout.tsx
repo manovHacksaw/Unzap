@@ -1,11 +1,8 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { NetworkProvider } from "@/lib/NetworkContext";
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
   return (
     <NetworkProvider>
       <div

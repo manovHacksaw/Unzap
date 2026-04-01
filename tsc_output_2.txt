@@ -1,0 +1,15 @@
+app/components/HeroSphere.tsx(22,33): error TS2322: Type '{ isReacting: boolean | undefined; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'isReacting' does not exist on type 'IntrinsicAttributes'.
+app/studio/contract-lab/page.tsx(1151,9): error TS2322: Type 'unknown' is not assignable to type 'string | CompiledContract'.
+app/studio/contract-lab/page.tsx(1152,39): error TS2304: Cannot find name 'CairoAssembly'.
+app/studio/contract-lab/page.tsx(1177,61): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'CompiledSierra'.
+app/studio/contract-lab/page.tsx(1298,9): error TS2322: Type 'AbiEntry[] | undefined' is not assignable to type 'AbiEntry[]'.
+  Type 'undefined' is not assignable to type 'AbiEntry[]'.
+app/studio/contract-lab/page.tsx(3275,13): error TS2322: Type '{ type: string; }[]' is not assignable to type '{ name: string; type: string; }[]'.
+  Property 'name' is missing in type '{ type: string; }' but required in type '{ name: string; type: string; }'.
+app/studio/contract-lab/page.tsx(3652,108): error TS2339: Property 'deployedAt' does not exist on type 'ContractHistoryItem'.
+app/studio/contract-lab/page.tsx(3723,19): error TS2304: Cannot find name 'deployedAddress'.
+app/studio/contract-lab/page.tsx(3736,19): error TS2304: Cannot find name 'deployedAddress'.
+app/studio/playground/page.tsx(267,52): error TS2322: Type '`0x${string}`' is not assignable to type 'Address'.
+  Type '`0x${string}`' is not assignable to type '{ readonly __type: "StarknetAddress"; }'.
+lib/prisma.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'PrismaClient'.

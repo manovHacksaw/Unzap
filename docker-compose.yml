@@ -7,7 +7,6 @@ services:
       - "3001:3001"
     environment:
       PORT: 3001
-      # Lock CORS to the Next.js dev server in local development.
-      # In production, set this to your Vercel URL.
-      ALLOWED_ORIGIN: "http://localhost:3000"
+      # Lock CORS to the Next.js domains in production.
+      ALLOWED_ORIGIN: "http://localhost:3000, https://unzap.xyz, https://unzap.vercel.app"
     restart: unless-stopped

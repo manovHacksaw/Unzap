@@ -22,9 +22,11 @@ export default function CTASection() {
             initial="initial"
             animate="animate"
         >
-            <p className="text-neutral-400 text-sm leading-relaxed mb-7 max-w-[320px] text-right">
-                Unzap removes the black box. Guided flows. Live execution on Starknet.
-                Real-time visualization of every step — from Cairo to paymaster to confirmation.
+            <p className="text-neutral-400 text-sm leading-relaxed mb-2 text-right">
+                Write Cairo.<br />Execute live.<br />See every step.<br />Right here.
+            </p>
+            <p className="text-neutral-600 text-xs tracking-widest uppercase mb-7 max-w-[320px] text-right">
+                No install. No setup. No CLI.
             </p>
 
             <div className="flex items-center gap-7">

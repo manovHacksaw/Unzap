@@ -292,7 +292,7 @@ function PlaygroundPanel() {
       <div className="p-4 space-y-3">
         {/* Code block */}
         <div className="bg-[#060b14] rounded-lg p-3 font-mono text-[10px] leading-relaxed border border-slate-800/50">
-          <div className="text-slate-500">// Initialize SDK</div>
+          <div className="text-slate-500">{"// Initialize SDK"}</div>
           <div>
             <span className="code-keyword">import</span>{" "}
             <span className="code-string">{"{ Zap }"}</span>{" "}
@@ -305,15 +305,12 @@ function PlaygroundPanel() {
             <span className="code-keyword">new</span>{" "}
             <span className="code-fn">Zap</span>(config)
           </div>
-          <div className="mt-2 text-slate-500">// Execute gasless payment</div>
+          <div className="text-slate-500">{"// Initialize SDK"}</div>
+          <div className="mt-2 text-slate-500">{"// Execute gasless payment"}</div>
           <div>
             <span className="code-keyword">await</span>{" "}
             <span className="code-fn">zap</span>.
-            <span className="code-fn">pay</span>({"{"}
-          </div>
-          <div className="pl-3">
-            <span className="code-prop">amount</span>:{" "}
-            <span className="code-number">1</span>,
+            <span className="code-method">sendTransaction</span>(&lbrace;
           </div>
           <div className="pl-3">
             <span className="code-prop">token</span>:{" "}
@@ -323,7 +320,7 @@ function PlaygroundPanel() {
             <span className="code-prop">gasless</span>:{" "}
             <span className="code-keyword">true</span>
           </div>
-          <div>{"}"});</div>
+          <div>&rbrace;);</div>
         </div>
 
         {/* Run button */}
