@@ -48,7 +48,7 @@ import { clsx } from "clsx";
 
 // ── Types & Constants ─────────────────────────────────────────────────────────
 
-const COMPILER_URL = process.env.NEXT_PUBLIC_COMPILER_URL ?? "http://localhost:3001";
+const COMPILER_URL = process.env.NEXT_PUBLIC_COMPILER_URL ?? "https://unzap.onrender.com";
 const CONTRACT_LAB_DRAFT_KEY = "unzap:contract-lab:draft";
 const CONTRACT_LAB_SETTINGS_KEY = "unzap:contract-lab:settings";
 const CONTRACT_LAB_DRAFT_VERSION = 2;
