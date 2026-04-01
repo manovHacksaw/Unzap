@@ -1,0 +1,14 @@
+# render.yaml (Blueprint for Unzap Compiler)
+services:
+  - type: web
+    name: unzap-compiler
+    env: docker
+    dockerContext: ./compiler
+    dockerfilePath: ./compiler/Dockerfile
+    plan: starter # Compilation requires a bit of RAM
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: ALLOWED_ORIGIN
+        value: "http://localhost:3000, https://unzap.xyz, https://unzap.vercel.app"
+    healthCheckPath: /health
