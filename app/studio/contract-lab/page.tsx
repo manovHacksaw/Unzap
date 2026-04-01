@@ -21,7 +21,6 @@ import {
   Zap,
   Shield,
   ChevronRight,
-  Plus,
   Trash2,
   CheckCircle2,
   AlertCircle,
@@ -31,7 +30,6 @@ import {
   Edit2,
   FilePlus,
   FolderPlus,
-  type LucideIcon,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -60,7 +58,6 @@ import {
   type ContractHistoryItem,
   type TransactionHistoryItem,
   type HistoryData,
-  type LiveDiagnostic,
   type BuildStatus,
   type DeployStatus,
   type ContractLabDraft,
@@ -157,7 +154,6 @@ export default function StarkzapIDE() {
   const [isDeployingAccount, setIsDeployingAccount] = useState(false);
 
   const [activeSidebarTab, setActiveSidebarTab] = useState("explorer");
-  const [activeRightTab, setActiveRightTab] = useState("deploy");
   const [activeInteractFn, setActiveInteractFn] = useState<string | null>(null);
   const [activeBottomTab, setActiveBottomTab] = useState("terminal");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -547,7 +543,6 @@ export default function StarkzapIDE() {
     ];
     setDeploySteps(steps);
     setDeployStatus("declaring");
-    setActiveRightTab("deploy");
     setActiveBottomTab("terminal");
     addLog(`Declaring contract on ${netConfig.label}...`);
 
@@ -1010,7 +1005,7 @@ export default function StarkzapIDE() {
                     {history.deployments.map((d: ContractHistoryItem) => (
                       <div
                         key={d.id}
-                        onClick={() => { setContractAddress(d.contractAddress); setActiveRightTab("interact"); }}
+                        onClick={() => { setContractAddress(d.contractAddress); }}
                         className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300"
                       >
                         <Box className="w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50" />

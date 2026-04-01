@@ -29,6 +29,7 @@
     "prisma": "^7.6.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "ethers": "^6.13.0",
     "starknet": "^9.4.2",
     "starkzap": "^2.0.0",
     "tailwind-merge": "^3.5.0",
@@ -45,9 +46,9 @@
     "typescript": "^5"
   },
   "overrides": {
-    "ethers": "5.7.2"
+    "ethers": "^6.13.0"
   },
   "resolutions": {
-    "ethers": "5.7.2"
+    "ethers": "^6.13.0"
   }
 }

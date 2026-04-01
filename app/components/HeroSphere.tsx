@@ -1,6 +1,8 @@
 "use client";
 
-import ParticleSphere from "./ParticleSphere";
+import dynamic from "next/dynamic";
+
+const ParticleSphere = dynamic(() => import("./ParticleSphere"), { ssr: false });
 
 interface HeroSphereProps {
     isReacting?: boolean;

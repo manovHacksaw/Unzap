@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronRight, Globe, Sparkles, X, Zap } from "lucide-react";
+import { AlertCircle, ChevronRight, Globe, Sparkles, Zap } from "lucide-react";
 
 interface AuthModalProps {
   authenticated: boolean;

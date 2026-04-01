@@ -1,0 +1,12 @@
+
+C:\Users\manov\Desktop\unzap\app\studio\contract-lab\components\AuthModal.tsx
+  1:54  warning  'X' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\manov\Desktop\unzap\app\studio\contract-lab\page.tsx
+   24:3   warning  'Plus' is defined but never used                     @typescript-eslint/no-unused-vars
+   34:8   warning  'LucideIcon' is defined but never used               @typescript-eslint/no-unused-vars
+   63:8   warning  'LiveDiagnostic' is defined but never used           @typescript-eslint/no-unused-vars
+  160:10  warning  'activeRightTab' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+Γ£û 5 problems (0 errors, 5 warnings)
+
