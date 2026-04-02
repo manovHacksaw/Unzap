@@ -24,7 +24,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  TestTube,
   RefreshCw,
   Edit2,
   FilePlus,
@@ -69,6 +68,8 @@ import {
   type BuildStatus,
   type DeployStatus,
   type ContractLabDraft,
+  type StudioToast,
+  type StudioToastInput,
 } from "./types";
 import { formatProblemsForCopy, getLiveDiagnostics, getSearchMatches, highlightCairo, normalizeAbiEntries } from "./utils";
 import { CopyButton } from "./components/CopyButton";
@@ -82,6 +83,7 @@ import { DeployAccountPrompt } from "./components/DeployAccountPrompt";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { InteractPanel } from "./components/InteractPanel";
 import { DeployPanel } from "./components/DeployPanel";
+import { ToastViewport } from "./components/ToastViewport";
 
 export default function StarkzapIDE() {
   // --- Privy Auth ---
@@ -184,6 +186,7 @@ export default function StarkzapIDE() {
 
   const [settings, setSettings] = useState<IDESettings>(DEFAULT_SETTINGS);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [toasts, setToasts] = useState<StudioToast[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
@@ -225,6 +228,25 @@ export default function StarkzapIDE() {
   const addLog = useCallback((log: string) => {
     const time = new Date().toLocaleTimeString([], { hour12: false });
     setTerminalLogs((prev) => [...prev, `[${time}] ${log}`]);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
+  const pushToast = useCallback((toast: StudioToastInput) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const nextToast: StudioToast = {
+      id,
+      title: toast.title,
+      description: toast.description,
+      tone: toast.tone ?? "info",
+    };
+
+    setToasts([nextToast]);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((entry) => entry.id !== id));
+    }, 3600);
   }, []);
 
   const appendCompilerOutput = useCallback((output: string) => {
@@ -364,6 +386,11 @@ export default function StarkzapIDE() {
         appendCompilerOutput(json.logs);
         addLog(`Build failed: ${json.errors?.length || 1} error(s) found.`);
         setActiveBottomTab("problems");
+        pushToast({
+          tone: "error",
+          title: "Build failed",
+          description: `${json.errors?.length || 1} compiler issue${json.errors?.length === 1 ? "" : "s"} found in ${activeSourceFile.filename}.`,
+        });
       } else {
         setBuildStatus("success");
         setBuildOutputsByFile((prev) => ({ ...prev, [activeSourceFile.id]: json as CompileSuccess }));
@@ -372,15 +399,25 @@ export default function StarkzapIDE() {
         setClassHash("");
         setDeploySteps([]);
         setSalt(Math.floor(Math.random() * 1_000_000_000).toString());
+        pushToast({
+          tone: "success",
+          title: "Build complete",
+          description: `${activeSourceFile.filename} compiled successfully and artifacts are ready.`,
+        });
       }
     } catch (e) {
       setBuildStatus("error");
       setErrors([{ message: e instanceof Error ? e.message : "Network error", line: 0, col: 0 }]);
       addLog(`Build failed: Network or server error.`);
+      pushToast({
+        tone: "error",
+        title: "Build request failed",
+        description: "The compiler could not be reached. Check the compiler service and try again.",
+      });
     }
-  }, [buildStatus, activeSourceFile, addLog, appendCompilerOutput]);
+  }, [buildStatus, activeSourceFile, addLog, appendCompilerOutput, pushToast]);
 
-  const handleAiFix = async (error: CompileError, index: number) => {
+  const handleAiFix = useCallback(async (error: CompileError, index: number) => {
     if (isAiFixing || !activeSourceFile) return;
     setIsAiFixing(index.toString());
     setAiFixSuggestion(null);
@@ -395,6 +432,11 @@ export default function StarkzapIDE() {
       if (data.fix || data.suggestion) {
         setAiFixSuggestion({ index, fix: data.fix || data });
         addLog("AI found a potential fix!");
+        pushToast({
+          tone: "info",
+          title: "AI suggestion ready",
+          description: `A proposed fix is available for line ${error.line}.`,
+        });
       } else {
         addLog(`AI: ${data.error || "No specific fix found."}`);
       }
@@ -403,8 +445,7 @@ export default function StarkzapIDE() {
     } finally {
       setIsAiFixing(null);
     }
-  };
-
+  }, [activeSourceFile, addLog, isAiFixing, pushToast]);
   const applyAiFix = useCallback((fix: { line: number, newContent: string }) => {
     if (!fix || !activeSourceFile || !fix.newContent) return;
     const lines = activeSourceFile.source.split("\n");
@@ -413,8 +454,13 @@ export default function StarkzapIDE() {
     setFiles((prev) => prev.map((f) => (f.id === activeSourceFile.id ? { ...f, source: newSource } : f)));
     setAiFixSuggestion(null);
     addLog("AI Fix applied! Recompiling...");
+    pushToast({
+      tone: "success",
+      title: "AI fix applied",
+      description: "The suggested change was written to the editor and a rebuild is starting.",
+    });
     setTimeout(() => handleBuild(), 100);
-  }, [activeSourceFile, addLog, handleBuild]);
+  }, [activeSourceFile, addLog, handleBuild, pushToast]);
 
   const fetchStrkBalance = useCallback(async (address: string) => {
     setIsFetchingBalance(true);
@@ -482,15 +528,29 @@ export default function StarkzapIDE() {
       addLog(
         `${restore ? "Restored" : "Connected"} Privy wallet: ${connectedWallet.address.slice(0, 10)}...`
       );
+      if (!restore) {
+        pushToast({
+          tone: "success",
+          title: "Privy wallet connected",
+          description: "Gasless execution is ready in the studio.",
+        });
+      }
       fetchStrkBalance(connectedWallet.address);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Connection failed";
-      if (!silent) setWalletError(message);
+      if (!silent) {
+        setWalletError(message);
+        pushToast({
+          tone: "error",
+          title: "Privy connection failed",
+          description: message,
+        });
+      }
       else console.warn("Silent Privy restore failed:", message);
     } finally {
       setIsWalletConnecting(false);
     }
-  }, [addLog, authenticated, fetchStrkBalance, getAccessToken, login, persistWalletSession, privyReady]);
+  }, [addLog, authenticated, fetchStrkBalance, getAccessToken, login, persistWalletSession, privyReady, pushToast]);
 
   const connectExtensionWallet = useCallback(async ({ silent = false, restore = false }: WalletConnectOptions = {}) => {
     if (!sdkRef.current) return;
@@ -512,15 +572,29 @@ export default function StarkzapIDE() {
       addLog(
         `${restore ? "Restored" : "Connected"} extension wallet: ${walletAccount.address.slice(0, 10)}...`
       );
+      if (!restore) {
+        pushToast({
+          tone: "success",
+          title: "Extension wallet connected",
+          description: "Self-managed execution is ready in the studio.",
+        });
+      }
       fetchStrkBalance(walletAccount.address);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Extension connection failed";
-      if (!silent) setWalletError(message);
+      if (!silent) {
+        setWalletError(message);
+        pushToast({
+          tone: "error",
+          title: "Extension connection failed",
+          description: message,
+        });
+      }
       else console.warn("Silent extension restore failed:", message);
     } finally {
       setIsWalletConnecting(false);
     }
-  }, [addLog, fetchStrkBalance, persistWalletSession]);
+  }, [addLog, fetchStrkBalance, persistWalletSession, pushToast]);
 
   useEffect(() => {
     if (!privyReady || !sdkRef.current || starknetAccount || isWalletConnecting) return;
@@ -573,6 +647,11 @@ export default function StarkzapIDE() {
     setDeploySteps([]);
     setHistory({ deployments: [], transactions: [] });
     addLog("Wallet disconnected.");
+    pushToast({
+      tone: "info",
+      title: "Wallet disconnected",
+      description: "Studio execution has been disconnected for this session.",
+    });
   };
 
   const logTransaction = async (data: TransactionData) => {
@@ -628,6 +707,11 @@ export default function StarkzapIDE() {
     setHistory({ deployments: [], transactions: [] });
     addLog(`[network] Switched to ${n === "mainnet" ? "Starknet Mainnet" : "Starknet Sepolia"}.`);
     setNetwork(n);
+    pushToast({
+      tone: "info",
+      title: `Switched to ${n === "mainnet" ? "Mainnet" : "Sepolia"}`,
+      description: "Wallet context and deploy state were reset for the new network.",
+    });
   };
 
   const handleDeployAccount = async () => {
@@ -639,16 +723,42 @@ export default function StarkzapIDE() {
       addLog("Account deployed successfully.");
       setShowDeployAccountPrompt(false);
       fetchStrkBalance(walletAddress);
+      pushToast({
+        tone: "success",
+        title: "Account deployed",
+        description: "Your Privy account is now live on-chain.",
+      });
     } catch (e) {
       addLog(`Account deploy failed: ${e instanceof Error ? e.message : String(e)}`);
+      pushToast({
+        tone: "error",
+        title: "Account deployment failed",
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setIsDeployingAccount(false);
     }
   };
 
   const handleDeclare = async () => {
-    if (!starknetAccount) { setShowAuthModal(true); return; }
-    if (!activeBuildData) { addLog("Build the contract first (Ctrl+S)."); return; }
+    if (!starknetAccount) {
+      setShowAuthModal(true);
+      pushToast({
+        tone: "warning",
+        title: "Connect a wallet first",
+        description: "A wallet is required before you can declare this contract.",
+      });
+      return;
+    }
+    if (!activeBuildData) {
+      addLog("Build the contract first (Ctrl+S).");
+      pushToast({
+        tone: "warning",
+        title: "Build required",
+        description: "Compile the current contract before declaring it on-chain.",
+      });
+      return;
+    }
     if (deployStatus !== "idle") return;
 
     if (walletType === "privy" && szWallet) {
@@ -691,6 +801,11 @@ export default function StarkzapIDE() {
       addLog(`Declare success! Class Hash: ${cHash}`);
       addLog(`Explorer: ${netConfig.voyager}/class/${cHash}`);
       logTransaction({ hash: declareResult.transaction_hash, type: "declare", status: "success" });
+      pushToast({
+        tone: "success",
+        title: "Contract declared",
+        description: `Class hash ${cHash.slice(0, 10)}... is ready to deploy.`,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("CLASS_ALREADY_DECLARED") || msg.includes("already declared") || msg.includes("already exists")) {
@@ -701,12 +816,22 @@ export default function StarkzapIDE() {
           setDeployStatus("declared");
           addLog("Class already declared on-chain — reusing existing class hash.");
           addLog(`Class Hash: ${cHash}`);
+          pushToast({
+            tone: "info",
+            title: "Class already declared",
+            description: "The existing class hash was recovered and reused.",
+          });
           return;
         } catch { /* fall through to error */ }
       }
       setDeploySteps((prev) => prev.map((s) => s.status === "active" ? { ...s, status: "error", detail: msg.slice(0, 60) } : s));
       setDeployStatus("idle");
       addLog(`Declare failed: ${msg}`);
+      pushToast({
+        tone: "error",
+        title: "Declare failed",
+        description: msg.slice(0, 140),
+      });
     }
   };
 
@@ -801,6 +926,11 @@ export default function StarkzapIDE() {
       setActiveSidebarTab("interact");
       setIsSidebarOpen(true);
       setActiveInteractFn(null);
+      pushToast({
+        tone: "success",
+        title: "Contract deployed",
+        description: `${predictedAddress.slice(0, 10)}... is live and ready to interact with.`,
+      });
 
       logDeployment({
         contractAddress: predictedAddress,
@@ -816,8 +946,18 @@ export default function StarkzapIDE() {
       setDeployStatus("declared");
       if (msg.includes("contract already deployed") || msg.includes("already deployed") || msg.includes("already exists")) {
         addLog(`Deploy failed: Address collision. Change the salt and try again.`);
+        pushToast({
+          tone: "warning",
+          title: "Address collision detected",
+          description: "That predicted address is already deployed. Regenerate the salt and try again.",
+        });
       } else {
         addLog(`Deploy failed: ${msg}`);
+        pushToast({
+          tone: "error",
+          title: "Deploy failed",
+          description: msg.slice(0, 140),
+        });
       }
     }
   };
@@ -965,6 +1105,48 @@ export default function StarkzapIDE() {
 
   const accentColor = { amber: "text-amber-500", emerald: "text-emerald-500", azure: "text-sky-500", mono: "text-white" }[settings.theme];
   const accentBg = { amber: "bg-amber-500", emerald: "bg-emerald-500", azure: "bg-sky-500", mono: "bg-white" }[settings.theme];
+  const sidebarTitleMap: Record<string, string> = {
+    explorer: "Explorer",
+    interact: "Contract Interface",
+    search: "Search",
+    history: "History",
+  };
+
+  const workspaceSignals = [
+    {
+      label: "Network",
+      value: netConfig.label,
+      tone: network === "mainnet" ? "amber" : "emerald",
+    },
+    {
+      label: "Wallet",
+      value: walletType === "privy" ? "Privy gasless" : walletType === "extension" ? "Extension connected" : "No wallet",
+      tone: walletType === "privy" ? "amber" : walletType === "extension" ? "sky" : "neutral",
+    },
+    {
+      label: "State",
+      value: contractAddress ? "Contract live" : classHash ? "Declared" : buildStatus === "success" ? "Ready to declare" : "Build required",
+      tone: contractAddress ? "emerald" : classHash ? "sky" : buildStatus === "success" ? "amber" : "neutral",
+    },
+  ] as const;
+
+  const renderSidebarActions = () => {
+    if (activeSidebarTab === "explorer") {
+      return (
+        <div className="flex items-center gap-0.5">
+          <button onClick={createFile} className="p-1 hover:bg-white/5 rounded transition-colors" title="New File"><FilePlus className="w-3.5 h-3.5 text-neutral-600" /></button>
+          <button className="p-1 hover:bg-white/5 rounded transition-colors" title="New Folder"><FolderPlus className="w-3.5 h-3.5 text-neutral-600" /></button>
+          <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-white/5 rounded transition-colors" title="Collapse sidebar"><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-0.5">
+        <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-white/5 rounded transition-colors" title="Collapse sidebar"><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
+      </div>
+    );
+  };
 
   const renderLogLine = (log: string) => {
     const parts = log.split(/(\b0x[a-fA-F0-9]{40,64}\b|https?:\/\/[^\s,]+)/g);
@@ -987,18 +1169,41 @@ export default function StarkzapIDE() {
   return (
     <div className="flex flex-col h-full bg-[#050505] text-neutral-400 font-sans overflow-hidden">
       {/* ── TOP BAR ── */}
-      <div className="flex items-center justify-between h-12 px-4 border-b border-border/50 bg-black/40 backdrop-blur-xl flex-shrink-0 z-20">
+      <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-800 bg-black/40 backdrop-blur-xl flex-shrink-0 z-20 gap-4">
         {/* Left: traffic lights + logo */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 min-w-0">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-neutral-700" />
             <div className="w-3 h-3 rounded-full bg-neutral-600" />
             <div className={clsx("w-3 h-3 rounded-full opacity-70", accentBg)} />
           </div>
-          <div className="w-px h-4 bg-border" />
-          <div className="flex items-center gap-2">
-            <TestTube className={clsx("w-3.5 h-3.5", accentColor, settings.theme !== 'mono' && "fill-current")} />
-            <span className="text-sm font-semibold text-foreground/90">Contract Lab</span>
+          <div className="w-px h-4 bg-neutral-800" />
+          <div className="flex items-center gap-3 min-w-0">
+            <Zap className={clsx("w-3.5 h-3.5", accentColor, settings.theme !== 'mono' && "fill-current")} />
+            <div className="text-sm font-semibold text-foreground/90">Starkzap Studio</div>
+          </div>
+          <div className="hidden xl:flex items-center gap-4 min-w-0">
+            {workspaceSignals.map((signal) => (
+              <div
+                key={signal.label}
+                className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.16em]"
+              >
+                <span className="text-neutral-600">{signal.label}</span>
+                <span
+                  className={clsx(
+                    signal.tone === "amber"
+                      ? "text-amber-300"
+                      : signal.tone === "emerald"
+                      ? "text-emerald-300"
+                      : signal.tone === "sky"
+                      ? "text-sky-300"
+                      : "text-neutral-300"
+                  )}
+                >
+                  {signal.value}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
         {/* Right: build button + status badge + settings */}
@@ -1030,7 +1235,7 @@ export default function StarkzapIDE() {
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-1.5 inline-block" />Building
             </Badge>
           )}
-          <div className="w-px h-4 bg-border mx-1" />
+          <div className="w-px h-4 bg-neutral-800 mx-1" />
           <Button
             variant="ghost"
             size="icon"
@@ -1046,13 +1251,13 @@ export default function StarkzapIDE() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* ── ACTIVITY BAR ── */}
-        <div className="flex flex-col items-center w-12 border-r border-border/50 bg-black/20 backdrop-blur-sm py-4 gap-4 flex-shrink-0">
-          <ActivityIcon icon={Files} active={activeSidebarTab === "explorer"} onClick={() => { setActiveSidebarTab("explorer"); setIsSidebarOpen(true); setIsRightPanelOpen(true); }} />
-          <ActivityIcon icon={Zap} active={activeSidebarTab === "interact"} onClick={() => { setActiveSidebarTab("interact"); setIsSidebarOpen(true); }} />
-          <ActivityIcon icon={Search} active={activeSidebarTab === "search"} onClick={() => { setActiveSidebarTab("search"); setIsSidebarOpen(true); setIsRightPanelOpen(true); }} />
-          <ActivityIcon icon={History} active={activeSidebarTab === "history"} onClick={() => { setActiveSidebarTab("history"); setIsSidebarOpen(true); setIsRightPanelOpen(true); }} />
+        <div className="flex flex-col items-center w-12 border-r border-neutral-800 bg-black/20 backdrop-blur-sm py-4 gap-4 flex-shrink-0">
+          <ActivityIcon label="Explorer" icon={Files} active={activeSidebarTab === "explorer"} onClick={() => { setActiveSidebarTab("explorer"); setIsSidebarOpen(true); setIsRightPanelOpen(true); }} />
+          <ActivityIcon label="Interact" icon={Zap} active={activeSidebarTab === "interact"} onClick={() => { setActiveSidebarTab("interact"); setIsSidebarOpen(true); }} />
+          <ActivityIcon label="Search" icon={Search} active={activeSidebarTab === "search"} onClick={() => { setActiveSidebarTab("search"); setIsSidebarOpen(true); setIsRightPanelOpen(true); }} />
+          <ActivityIcon label="History" icon={History} active={activeSidebarTab === "history"} onClick={() => { setActiveSidebarTab("history"); setIsSidebarOpen(true); setIsRightPanelOpen(true); }} />
           <div className="flex-1" />
-          <ActivityIcon icon={Layout} active={isRightPanelOpen} onClick={() => setIsRightPanelOpen(!isRightPanelOpen)} />
+          <ActivityIcon label={isRightPanelOpen ? "Hide deploy panel" : "Show deploy panel"} icon={Layout} active={isRightPanelOpen} onClick={() => setIsRightPanelOpen(!isRightPanelOpen)} />
         </div>
 
         {/* ── LEFT SIDEBAR ── */}
@@ -1062,14 +1267,10 @@ export default function StarkzapIDE() {
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 260, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              className="flex flex-col border-r border-border/50 bg-black/20 backdrop-blur-sm overflow-hidden flex-shrink-0"
+              className="flex flex-col border-r border-neutral-800 bg-black/20 backdrop-blur-sm overflow-hidden flex-shrink-0"
             >
-              <PanelHeader title={activeSidebarTab === "explorer" ? "Explorer" : activeSidebarTab}>
-                <div className="flex items-center gap-0.5">
-                  <button onClick={createFile} className="p-1 hover:bg-white/5 rounded transition-colors" title="New File"><FilePlus className="w-3.5 h-3.5 text-neutral-600" /></button>
-                  <button className="p-1 hover:bg-white/5 rounded transition-colors" title="New Folder"><FolderPlus className="w-3.5 h-3.5 text-neutral-600" /></button>
-                  <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-white/5 rounded transition-colors"><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
-                </div>
+              <PanelHeader title={sidebarTitleMap[activeSidebarTab] ?? activeSidebarTab}>
+                {renderSidebarActions()}
               </PanelHeader>
 
               <ScrollArea className="flex-1" onContextMenu={(e) => openContextMenu(e, null)}>
@@ -1168,6 +1369,11 @@ export default function StarkzapIDE() {
                           addLog(
                             `[history] Loaded ${d.contractAddress.slice(0, 10)}... with ${restoredAbi.length || 0} ABI entr${restoredAbi.length === 1 ? "y" : "ies"}.`
                           );
+                          pushToast({
+                            tone: "info",
+                            title: "Deployment restored",
+                            description: `${d.name || "Contract"} is back in the deployment panel.`,
+                          });
                         }}
                         className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300"
                       >
@@ -1247,6 +1453,11 @@ export default function StarkzapIDE() {
                                 addLog(
                                   `[history] Restored contract: ${d.contractAddress.slice(0, 10)}... (${restoredAbi.length || 0} ABI entr${restoredAbi.length === 1 ? "y" : "ies"})`
                                 );
+                                pushToast({
+                                  tone: "info",
+                                  title: "Interface restored",
+                                  description: `${d.name || "Contract"} is ready in the interact workspace.`,
+                                });
                               }}
                             />
                           ))}
@@ -1256,7 +1467,20 @@ export default function StarkzapIDE() {
                     <div>
                       <div className="flex items-center justify-between mb-4">
                         <div className="text-[10px] text-neutral-600 uppercase tracking-widest font-bold">Recent Transactions</div>
-                        <button onClick={() => setHistory({ deployments: [], transactions: [] })} className="p-1 hover:text-white transition-colors" title="Clear history"><RefreshCw className="w-2.5 h-2.5" /></button>
+                        <button
+                          onClick={() => {
+                            setHistory({ deployments: [], transactions: [] });
+                            pushToast({
+                              tone: "info",
+                              title: "History cleared",
+                              description: "Local deployment and transaction history was cleared from the studio view.",
+                            });
+                          }}
+                          className="p-1 hover:text-white transition-colors"
+                          title="Clear history"
+                        >
+                          <RefreshCw className="w-2.5 h-2.5" />
+                        </button>
                       </div>
                       {history.transactions.length === 0 ? (
                         <div className="text-[10px] text-neutral-700 italic border border-dashed border-neutral-900 rounded-lg p-6 text-center">No transactions logged yet.</div>
@@ -1386,15 +1610,16 @@ export default function StarkzapIDE() {
                   recentDeployments={history.deployments}
                   layout="fullscreen"
                   activeFileName={activeFile?.filename}
+                  notify={pushToast}
                 />
               </div>
             </div>
           ) : (
             <>
               {/* Tabs */}
-              <div className="flex h-10 bg-black/20 backdrop-blur-sm border-b border-border/50 overflow-x-auto flex-shrink-0 no-scrollbar items-end px-2">
+              <div className="flex h-10 bg-black/20 backdrop-blur-sm border-b border-neutral-800 overflow-x-auto flex-shrink-0 no-scrollbar items-end px-2">
                 {[activeFile].filter(Boolean).map(f => (
-                  <div key={f.id} className="px-3 py-1.5 bg-black/40 rounded-t-md border-t border-x border-border/50 flex items-center gap-2 min-w-[140px]">
+                  <div key={f.id} className="px-3 py-1.5 bg-black/40 rounded-t-md border-t border-x border-neutral-800 flex items-center gap-2 min-w-[140px]">
                     <FileCode className={clsx("w-3.5 h-3.5 flex-shrink-0", f.readonly ? "text-sky-400" : accentColor)} />
                     <span className="text-xs text-foreground/90 font-medium truncate">{f.filename}</span>
                   </div>
@@ -1451,13 +1676,23 @@ export default function StarkzapIDE() {
                   <div className="flex items-center gap-1.5 p-1 rounded-lg bg-neutral-900/80 backdrop-blur-md border border-neutral-800">
                     <button onClick={handleBuild} className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400 hover:text-amber-500 transition-colors">Build</button>
                     <div className="w-px h-3 bg-neutral-800" />
-                    <CopyButton text={currentSource} label="Copy" />
+                    <CopyButton
+                      text={currentSource}
+                      label="Copy"
+                      onCopy={() =>
+                        pushToast({
+                          tone: "success",
+                          title: "Source copied",
+                          description: `${activeFile?.filename || "Current file"} was copied to your clipboard.`,
+                        })
+                      }
+                    />
                   </div>
                 </div>
               </div>
 
               {/* Status Bar */}
-              <div className="flex items-center justify-between h-5 px-3 bg-[#0a0a0a] border-t border-neutral-900/60 flex-shrink-0 text-[10px] font-mono text-neutral-600 select-none">
+              <div className="flex items-center justify-between h-5 px-3 bg-[#0a0a0a] border-t border-neutral-800 flex-shrink-0 text-[10px] font-mono text-neutral-600 select-none">
                 <div className="flex items-center gap-1.5"><span>Ln {cursorLine}, Col {cursorCol}</span></div>
                 <div className="flex items-center gap-3">
                   <span className="uppercase tracking-wider">{activeFile?.filename?.split('.').pop()}</span>
@@ -1468,12 +1703,12 @@ export default function StarkzapIDE() {
               {/* Resize Handle */}
               <div
                 onMouseDown={() => setIsResizingTerminal(true)}
-                className={clsx("h-1 flex-shrink-0 cursor-row-resize transition-colors border-t border-border/30", isResizingTerminal ? "bg-amber-500/40" : "bg-border/20 hover:bg-amber-500/30")}
+                className={clsx("h-1 flex-shrink-0 cursor-row-resize transition-colors border-t border-neutral-800", isResizingTerminal ? "bg-amber-500/40" : "bg-neutral-900 hover:bg-amber-500/30")}
               />
 
               {/* BOTTOM PANEL */}
-              <div className="flex flex-col border-t border-border/50 bg-black/30 backdrop-blur-sm flex-shrink-0" style={{ height: terminalHeight }}>
-                <div className="flex items-center h-9 px-3 border-b border-border/50 justify-between bg-black/20">
+              <div className="flex flex-col border-t border-neutral-800 bg-black/30 backdrop-blur-sm flex-shrink-0" style={{ height: terminalHeight }}>
+                <div className="flex items-center h-9 px-3 border-b border-neutral-800 justify-between bg-black/20">
                   <div className="flex items-center h-full gap-0.5">
                     <Button variant="ghost" size="sm" onClick={() => setActiveBottomTab("terminal")} className={clsx("h-7 px-2.5 text-[11px] gap-1.5 rounded-sm transition-colors", activeBottomTab === "terminal" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-white/5")}>
                       <Terminal className="w-3 h-3" />Terminal
@@ -1512,7 +1747,17 @@ export default function StarkzapIDE() {
                     <div className="space-y-3">
                       {(liveDiagnostics.length > 0 || errors.length > 0 || compilerOutput) && (
                         <div className="flex justify-end">
-                          <CopyButton text={formatProblemsForCopy(errors, liveDiagnostics, compilerOutput)} label="Copy Problems" />
+                          <CopyButton
+                            text={formatProblemsForCopy(errors, liveDiagnostics, compilerOutput)}
+                            label="Copy Problems"
+                            onCopy={() =>
+                              pushToast({
+                                tone: "success",
+                                title: "Problems copied",
+                                description: "Diagnostics and compiler output were copied to your clipboard.",
+                              })
+                            }
+                          />
                         </div>
                       )}
                       {liveDiagnostics.length > 0 && (
@@ -1551,7 +1796,17 @@ export default function StarkzapIDE() {
                         <div className="rounded border border-neutral-800 bg-black/30 p-3">
                           <div className="mb-2 flex items-center justify-between">
                             <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Full Compiler Trace</div>
-                            <CopyButton text={compilerOutput} label="Copy Logs" />
+                            <CopyButton
+                              text={compilerOutput}
+                              label="Copy Logs"
+                              onCopy={() =>
+                                pushToast({
+                                  tone: "success",
+                                  title: "Logs copied",
+                                  description: "The full compiler trace was copied to your clipboard.",
+                                })
+                              }
+                            />
                           </div>
                           <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap rounded border border-neutral-900 bg-[#050505] p-3 text-[12px] leading-relaxed text-neutral-300">{compilerOutput}</pre>
                         </div>
@@ -1573,9 +1828,9 @@ export default function StarkzapIDE() {
               exit={{ width: 0, opacity: 0 }}
               className="flex flex-shrink-0 overflow-hidden"
             >
-              <div onMouseDown={() => setIsResizingRightPanel(true)} className={clsx("relative w-1 flex-shrink-0 cursor-col-resize transition-colors", isResizingRightPanel ? "bg-amber-500/40" : "bg-border/40 hover:bg-amber-500/50")} />
-              <div className="flex flex-col h-full flex-1 border-l border-border/50 bg-black/20 backdrop-blur-sm overflow-hidden">
-                <div className="flex items-center h-10 px-5 bg-black/40 backdrop-blur-xl border-b border-border/50 flex-shrink-0 justify-between">
+              <div onMouseDown={() => setIsResizingRightPanel(true)} className={clsx("relative w-1 flex-shrink-0 cursor-col-resize transition-colors", isResizingRightPanel ? "bg-amber-500/40" : "bg-neutral-800 hover:bg-amber-500/50")} />
+              <div className="flex flex-col h-full flex-1 border-l border-neutral-800 bg-black/20 backdrop-blur-sm overflow-hidden">
+                <div className="flex items-center h-10 px-5 bg-black/40 backdrop-blur-xl border-b border-neutral-800 flex-shrink-0 justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/60">Deploy</span>
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -1609,6 +1864,7 @@ export default function StarkzapIDE() {
                   handleDeploy={handleDeploy}
                   onReset={() => { setDeployStatus("idle"); setClassHash(""); setContractAddress(""); setDeploySteps([]); setConstructorInputs({}); }}
                   isWalletConnecting={isWalletConnecting}
+                  notify={pushToast}
                 />
               </div>
             </motion.div>
@@ -1644,8 +1900,10 @@ export default function StarkzapIDE() {
         onDeployAccount={handleDeployAccount}
       />
 
+      <ToastViewport toasts={toasts} onDismiss={dismissToast} />
+
       {/* ── STATUS BAR ── */}
-      <div className="flex items-center justify-between h-7 px-3 text-[10px] border-t border-border/50 bg-black/40 backdrop-blur-xl text-muted-foreground select-none transition-colors">
+      <div className="flex items-center justify-between h-7 px-3 text-[10px] border-t border-neutral-800 bg-black/40 backdrop-blur-xl text-muted-foreground select-none transition-colors">
         <div className="flex items-center gap-4 h-full">
           <div className="flex items-center gap-1.5 h-full px-2 hover:bg-white/5 cursor-pointer transition-colors group" onClick={() => handleNetworkSwitch(network === "mainnet" ? "sepolia" : "mainnet")} title={`Switch to ${network === "mainnet" ? "Sepolia testnet" : "Mainnet"}`}>
             <Box className={clsx("w-3 h-3 group-hover:scale-110 transition-transform", accentColor)} />

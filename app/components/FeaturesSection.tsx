@@ -276,7 +276,7 @@ export const Globe = ({ className }: { className?: string }) => {
                 state.phi = phi;
                 phi += 0.005;
             },
-        } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+        } as Parameters<typeof createGlobe>[1]);
 
         return () => {
             globe.destroy();

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { WalletAccount, Account, hash, type CairoAssembly, type CompiledSierra } from "starknet";
 import { OnboardStrategy, accountPresets } from "starkzap";
 import { 
@@ -259,7 +259,7 @@ export function useStarknetDeploy({
         setDeployStep("check", "error", "Already deployed");
         setDeployStatus("declared");
         return;
-      } catch (e: unknown) {
+      } catch {
         setDeployStep("check", "done", "Address is available");
       }
       
