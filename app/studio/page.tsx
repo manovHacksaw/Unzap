@@ -48,14 +48,10 @@ export default function StudioDashboard() {
 
   return (
     <div className="relative min-h-screen bg-[#050505] text-white selection:bg-white/20 overflow-hidden">
-      {/* Background Sphere Effect */}
-      <div className="absolute -top-[50%] right-0 w-[70%] h-[120%] opacity-60 pointer-events-none translate-x-[20%] -translate-y-[10%] blur-[2px]">
-        <HeroSphere />
-      </div>
-
       <div className="max-w-[1600px] mx-auto px-6 sm:px-10 py-16 md:py-24 relative z-10 space-y-20">
         {/* Header Section */}
-        <section className="space-y-8 max-w-4xl">
+        <section className="flex flex-col lg:flex-row lg:items-start justify-between gap-12 pt-8">
+          <div className="space-y-8 max-w-4xl lg:pt-20">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -110,7 +106,13 @@ export default function StudioDashboard() {
               </button>
             </div>
           </motion.div>
-        </section>
+        </div>
+
+        {/* Particle Logo - positioned in the "empty space" beside the text */}
+        <div className="hidden lg:block relative w-[450px] h-[450px] xl:w-[600px] xl:h-[600px] shrink-0 opacity-60 -translate-x-16 translate-y-20 pointer-events-none">
+           <HeroSphere />
+        </div>
+      </section>
 
         {/* Feature Grid */}
         <section>
