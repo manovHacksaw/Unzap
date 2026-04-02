@@ -8,6 +8,7 @@ import {
   accountPresets,
   getPresets,
   Amount,
+  fromAddress,
 } from "starkzap";
 import { usePrivy } from "@privy-io/react-auth";
 import { useNetwork } from "@/lib/NetworkContext";
@@ -257,14 +258,13 @@ export default function PlaygroundPage() {
         const STRK   = getPresets(netConfig.chainId).STRK;
         const ETH    = getPresets(netConfig.chainId).ETH;
         const token  = action === "pay" ? STRK : ETH;
-        const target = toAddress.trim() || wallet.address.toString();
-
+        const target = fromAddress(toAddress.trim() || wallet.address.toString());
         setStep("build", "active");
         const parsedAmount = Amount.parse(amount || "0.0001", token);
         setStep("build", "done");
         setStep("paymaster", "active");
 
-        const tx = await wallet.transfer(token, [{ to: target as `0x${string}`, amount: parsedAmount }]);
+        const tx = await wallet.transfer(token, [{ to: target, amount: parsedAmount }]);
 
         setStep("paymaster", "done");
         setStep("sign", "done");
