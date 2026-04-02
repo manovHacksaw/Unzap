@@ -20,10 +20,16 @@ function normalizeDatabaseUrl(rawUrl: string) {
 }
 
 function getRuntimeDatabaseUrl() {
-    const rawUrl = process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL ?? process.env.POSTGRES_URL ?? "";
+    const configuredUrl =
+        process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL ?? process.env.POSTGRES_URL ?? "";
+    const rawUrl = configuredUrl.trim();
 
     if (!rawUrl) {
         throw new Error("DATABASE_URL is not configured.");
+    }
+
+    if (configuredUrl !== rawUrl) {
+        console.warn("[prisma] DATABASE_URL contained leading or trailing whitespace. Trimming before connecting.");
     }
 
     try {

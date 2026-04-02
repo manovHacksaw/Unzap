@@ -1,33 +1,32 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { join } from "path";
+import { prisma } from "@/lib/prisma";
+import { privy } from "@/lib/privy";
 
-const STORE_PATH = join(process.cwd(), ".wallet-store.json");
+const PRIVY_API_BASE_URL = "https://api.privy.io";
 
-function loadStore(): Record<string, string> {
-  if (!existsSync(STORE_PATH)) return {};
-  try {
-    return JSON.parse(readFileSync(STORE_PATH, "utf-8"));
-  } catch {
-    return {};
+function getPrivyCredentials() {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const appSecret = process.env.PRIVY_APP_SECRET;
+
+  if (!appId || !appSecret) {
+    throw new Error("Privy server credentials are not configured.");
   }
+
+  return { appId, appSecret };
 }
 
-function saveStore(store: Record<string, string>) {
-  writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
-}
-
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-  return JSON.parse(Buffer.from(base64, "base64").toString("utf-8"));
+function isUniqueConstraintError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
+  );
 }
 
 async function privyFetch(path: string, options: RequestInit = {}) {
-  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID!;
-  const appSecret = process.env.PRIVY_APP_SECRET!;
+  const { appId, appSecret } = getPrivyCredentials();
   const basicAuth = Buffer.from(`${appId}:${appSecret}`).toString("base64");
 
-  return fetch(`https://api.privy.io${path}`, {
+  return fetch(`${PRIVY_API_BASE_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -38,6 +37,67 @@ async function privyFetch(path: string, options: RequestInit = {}) {
   });
 }
 
+async function createPrivyWallet() {
+  const createRes = await privyFetch("/v1/wallets", {
+    method: "POST",
+    body: JSON.stringify({ chain_type: "starknet" }),
+  });
+
+  if (!createRes.ok) {
+    const err = (await createRes.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+    };
+
+    throw new Error(err.message ?? err.error ?? "Failed to create wallet");
+  }
+
+  const created = (await createRes.json()) as { id?: string };
+
+  if (!created.id) {
+    throw new Error("Privy did not return a wallet id.");
+  }
+
+  return created.id;
+}
+
+async function getOrCreateWalletId(userId: string) {
+  const existing = await prisma.privyWallet.findUnique({
+    where: { userId },
+  });
+
+  if (existing) {
+    return existing.walletId;
+  }
+
+  const createdWalletId = await createPrivyWallet();
+
+  try {
+    const record = await prisma.privyWallet.create({
+      data: {
+        userId,
+        walletId: createdWalletId,
+      },
+    });
+
+    return record.walletId;
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    const record = await prisma.privyWallet.findUnique({
+      where: { userId },
+    });
+
+    if (!record) {
+      throw error;
+    }
+
+    return record.walletId;
+  }
+}
+
 export async function POST(req: Request) {
   const authHeader = req.headers.get("Authorization");
   const token = authHeader?.split(" ")[1];
@@ -46,44 +106,39 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing token" }, { status: 401 });
   }
 
+  let userId: string;
+
   try {
-    const payload = decodeJwtPayload(token);
-    const userDid = payload.sub as string;
+    const verifiedToken = await privy.verifyAuthToken(token);
+    userId = verifiedToken.userId;
+  } catch {
+    return NextResponse.json({ error: "Invalid access token" }, { status: 401 });
+  }
 
-    if (!userDid) {
-      return NextResponse.json({ error: "Invalid access token" }, { status: 401 });
-    }
+  if (!userId) {
+    return NextResponse.json({ error: "Invalid access token" }, { status: 401 });
+  }
 
-    const store = loadStore();
-    let walletId = store[userDid];
-
-    if (!walletId) {
-      const createRes = await privyFetch("/v1/wallets", {
-        method: "POST",
-        body: JSON.stringify({ chain_type: "starknet" }),
-      });
-
-      if (!createRes.ok) {
-        const err = await createRes.json().catch(() => ({}));
-        return NextResponse.json(
-          { error: (err as { message?: string }).message ?? "Failed to create wallet" },
-          { status: 500 }
-        );
-      }
-
-      const created = await createRes.json();
-      walletId = created.id;
-      store[userDid] = walletId;
-      saveStore(store);
-    }
-
+  try {
+    const walletId = await getOrCreateWalletId(userId);
     const walletRes = await privyFetch(`/v1/wallets/${walletId}`);
 
     if (!walletRes.ok) {
-      return NextResponse.json({ error: "Failed to fetch wallet details" }, { status: 500 });
+      const err = (await walletRes.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+      };
+
+      return NextResponse.json(
+        { error: err.message ?? err.error ?? "Failed to fetch wallet details" },
+        { status: 500 }
+      );
     }
 
-    const wallet = await walletRes.json();
+    const wallet = (await walletRes.json()) as {
+      id: string;
+      public_key: string;
+    };
     const origin = new URL(req.url).origin;
 
     return NextResponse.json({
@@ -91,7 +146,21 @@ export async function POST(req: Request) {
       publicKey: wallet.public_key,
       serverUrl: `${origin}/api/wallet/sign`,
     });
-  } catch {
-    return NextResponse.json({ error: "Auth failed" }, { status: 500 });
+  } catch (error) {
+    const err = error as { code?: string; message?: string };
+
+    console.error("POST /api/signer-context failed:", {
+      message: err.message,
+      code: err.code,
+      stack: error instanceof Error ? error.stack?.split("\n")[0] : undefined,
+    });
+
+    return NextResponse.json(
+      {
+        error: "Failed to resolve signer context",
+        details: process.env.NODE_ENV === "development" ? err.message : undefined,
+      },
+      { status: 500 }
+    );
   }
 }
