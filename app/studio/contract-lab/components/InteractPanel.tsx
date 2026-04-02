@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Account, WalletAccount, shortString, type ProviderInterface } from "starknet";
 import {
   AlertCircle,
@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatAbiEntries, normalizeAbiEntries } from "../utils";
 
 interface InteractPanelProps {
   contractAddress: string;
@@ -79,6 +80,7 @@ export function InteractPanel({
   const [customAddress, setCustomAddress] = useState("");
   const [customAbiText, setCustomAbiText] = useState("");
   const [customAbiError, setCustomAbiError] = useState("");
+  const [isLoadingTarget, setIsLoadingTarget] = useState(false);
   const [useCustomTarget, setUseCustomTarget] = useState(false);
   const [showCustomTarget, setShowCustomTarget] = useState(false);
 
@@ -97,17 +99,37 @@ export function InteractPanel({
   const parsedCustomAbi = useMemo(() => {
     if (!customAbiText.trim()) return null;
     try {
-      const parsed = JSON.parse(customAbiText.trim());
-      setCustomAbiError("");
-      return Array.isArray(parsed) ? parsed : null;
+      return normalizeAbiEntries(JSON.parse(customAbiText.trim()));
     } catch {
-      setCustomAbiError("Invalid JSON — paste a raw ABI array.");
       return null;
     }
   }, [customAbiText]);
 
+  useEffect(() => {
+    if (!customAbiText.trim()) {
+      setCustomAbiError("");
+      return;
+    }
+
+    if (!parsedCustomAbi || parsedCustomAbi.length === 0) {
+      setCustomAbiError("Invalid JSON — paste a raw ABI array.");
+      return;
+    }
+
+    setCustomAbiError("");
+  }, [customAbiText, parsedCustomAbi]);
+
+  const savedDeployedAbi = useMemo(() => {
+    if (!contractAddress) return [];
+    const matchedDeployment = recentDeployments.find(
+      (deployment) => deployment.contractAddress.toLowerCase() === contractAddress.toLowerCase()
+    );
+    return matchedDeployment ? normalizeAbiEntries(matchedDeployment.abi) : [];
+  }, [contractAddress, recentDeployments]);
+
   const effectiveAddress = useCustomTarget && customAddress ? customAddress : contractAddress;
-  const effectiveAbi: AbiEntry[] = useCustomTarget && parsedCustomAbi ? parsedCustomAbi : deployedAbi;
+  const resolvedDeployedAbi = savedDeployedAbi.length > 0 ? savedDeployedAbi : deployedAbi;
+  const effectiveAbi: AbiEntry[] = useCustomTarget && parsedCustomAbi ? parsedCustomAbi : resolvedDeployedAbi;
 
   const externalFunctions = useMemo(() => {
     const fns: AbiEntry[] = [];
@@ -212,6 +234,43 @@ export function InteractPanel({
     }
     return calldata;
   }
+
+  const resolveAbiForAddress = useCallback(async (address: string) => {
+    if (!provider) {
+      throw new Error("No provider available to resolve ABI on the selected network.");
+    }
+
+    const contractClass = await provider.getClassAt(address);
+    const resolvedAbi = normalizeAbiEntries((contractClass as { abi?: unknown }).abi);
+    if (resolvedAbi.length === 0) {
+      throw new Error("No ABI was returned for this contract.");
+    }
+
+    return resolvedAbi;
+  }, [provider]);
+
+  const loadCustomTarget = useCallback(async (addressInput: string, abiOverride?: AbiEntry[]) => {
+    const address = addressInput.trim();
+    if (!address) return;
+
+    setIsLoadingTarget(true);
+    try {
+      const resolvedAbi = abiOverride && abiOverride.length > 0 ? abiOverride : await resolveAbiForAddress(address);
+      setCustomAddress(address);
+      setCustomAbiText(formatAbiEntries(resolvedAbi));
+      setCustomAbiError("");
+      setUseCustomTarget(true);
+      setShowCustomTarget(false);
+      setActiveSubTab("functions");
+      addLog(`[interact] Loaded ${address.slice(0, 10)}... with ${resolvedAbi.length} ABI entr${resolvedAbi.length === 1 ? "y" : "ies"}.`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to load contract ABI.";
+      setCustomAbiError(message);
+      addLog(`[interact] ${message}`);
+    } finally {
+      setIsLoadingTarget(false);
+    }
+  }, [addLog, resolveAbiForAddress]);
 
   const callFn = async (fn: AbiEntry) => {
     if (!effectiveAddress) return;
@@ -510,6 +569,42 @@ export function InteractPanel({
     );
   };
 
+  const InteractionMetaStrip = ({ compact = false }: { compact?: boolean }) => (
+    <div className={clsx(
+      "flex flex-wrap items-center gap-2",
+      compact ? "px-3 py-2 border-b border-border/40 bg-black/10" : "mb-5"
+    )}>
+      <Badge
+        variant="outline"
+        className="border-amber-500/20 bg-amber-500/10 text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-300"
+      >
+        <Zap className="w-3 h-3" />
+        Powered by StarkZap SDK
+      </Badge>
+      <Badge
+        variant="outline"
+        className={clsx(
+          "text-[9px] font-semibold uppercase tracking-[0.16em]",
+          walletType === "privy"
+            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+            : "border-border/60 bg-white/[0.03] text-neutral-300"
+        )}
+      >
+        <Shield className="w-3 h-3" />
+        {walletType === "privy" ? "Transactions are gasless" : "Gasless with Privy"}
+      </Badge>
+      {walletAddress && (
+        <Badge
+          variant="outline"
+          className="border-border/60 bg-white/[0.03] text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-300"
+        >
+          <Wallet className="w-3 h-3" />
+          {walletType === "privy" ? "Privy session active" : "Self-managed wallet"}
+        </Badge>
+      )}
+    </div>
+  );
+
   // ── wallet + network bar ──────────────────────────────────────────────────
   const WalletNetworkBar = () => (
     <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50 bg-black/20 flex-shrink-0">
@@ -683,7 +778,7 @@ export function InteractPanel({
               {recentDeployments.slice(0, 3).map((d: ContractHistoryItem) => (
                 <button
                   key={d.id}
-                  onClick={() => { setCustomAddress(d.contractAddress); if (d.abi) setCustomAbiText(JSON.stringify(d.abi)); }}
+                  onClick={() => void loadCustomTarget(d.contractAddress, normalizeAbiEntries(d.abi))}
                   className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md border border-border/40 bg-black/20 hover:border-border/70 transition-colors text-left group"
                 >
                   <Box className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-500/50 flex-shrink-0 transition-colors" />
@@ -700,10 +795,10 @@ export function InteractPanel({
             <Button
               size="sm"
               className="flex-1 h-7 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-black hover:bg-amber-400"
-              disabled={!customAddress}
-              onClick={() => { if (customAddress) { setUseCustomTarget(true); setShowCustomTarget(false); setActiveSubTab("functions"); } }}
+              disabled={!customAddress || isLoadingTarget || (!!customAbiText.trim() && !!customAbiError)}
+              onClick={() => void loadCustomTarget(customAddress, parsedCustomAbi ?? undefined)}
             >
-              Load
+              {isLoadingTarget ? "Loading..." : "Load"}
             </Button>
             <Button
               size="sm"
@@ -748,6 +843,7 @@ export function InteractPanel({
     return (
       <div className="flex flex-col h-full">
         <WalletNetworkBar />
+        <InteractionMetaStrip compact />
         <AddressBar />
         <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
           <div className="w-12 h-12 rounded-xl bg-black/30 border border-border/50 flex items-center justify-center">
@@ -777,6 +873,7 @@ export function InteractPanel({
     return (
       <div className="flex flex-col h-full">
         <WalletNetworkBar />
+        <InteractionMetaStrip compact />
         <AddressBar />
         <ScrollArea className="flex-1">
           {activeSubTab === "functions" ? (
@@ -1001,6 +1098,8 @@ export function InteractPanel({
         )}
       </div>
 
+      <InteractionMetaStrip />
+
       {/* Load external form (fullscreen) */}
       {showCustomTarget && (
         <div className="mb-6 p-5 rounded-xl bg-black/30 border border-amber-500/15 backdrop-blur-sm animate-in slide-in-from-top-2 duration-200">
@@ -1021,7 +1120,7 @@ export function InteractPanel({
                   {recentDeployments.slice(0, 4).map((d: ContractHistoryItem) => (
                     <button
                       key={d.id}
-                      onClick={() => setCustomAddress(d.contractAddress)}
+                      onClick={() => void loadCustomTarget(d.contractAddress, normalizeAbiEntries(d.abi))}
                       className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-black/20 border border-border/40 hover:border-border/70 hover:bg-black/30 transition-all group text-left"
                     >
                       <Box className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-500/60 flex-shrink-0 transition-colors" />
@@ -1056,10 +1155,10 @@ export function InteractPanel({
             <Button
               size="sm"
               className="h-8 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-black hover:bg-amber-400 px-5"
-              disabled={!customAddress}
-              onClick={() => { if (customAddress) { setUseCustomTarget(true); setShowCustomTarget(false); } }}
+              disabled={!customAddress || isLoadingTarget || (!!customAbiText.trim() && !!customAbiError)}
+              onClick={() => void loadCustomTarget(customAddress, parsedCustomAbi ?? undefined)}
             >
-              Load Interface
+              {isLoadingTarget ? "Loading..." : "Load Interface"}
             </Button>
           </div>
         </div>
