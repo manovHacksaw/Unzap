@@ -1,11 +1,15 @@
+"use client";
+
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Shield, X } from "lucide-react";
+import { Loader2, Shield, X, Copy, Check } from "lucide-react";
 import { clsx } from "clsx";
+import { useState } from "react";
 
 interface DeployAccountPromptProps {
   isOpen: boolean;
   onClose: () => void;
   networkLabel: string;
+  walletAddress: string;
   isDeployingAccount: boolean;
   onDeployAccount: () => void;
 }
@@ -14,9 +18,17 @@ export function DeployAccountPrompt({
   isOpen,
   onClose,
   networkLabel,
+  walletAddress,
   isDeployingAccount,
   onDeployAccount,
 }: DeployAccountPromptProps) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(walletAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -44,11 +56,20 @@ export function DeployAccountPrompt({
                   <X className="w-4 h-4 text-neutral-600" />
                 </button>
               </div>
-              <p className="text-[11px] text-neutral-500 mb-6 leading-relaxed">
-                Your wallet is connected but the account contract hasn&apos;t been deployed on {networkLabel} yet. You need to deploy it once before you can sign transactions.
+              <p className="text-[11px] text-neutral-500 mb-4 leading-relaxed">
+                Your Privy wallet exists but the account contract hasn&apos;t been deployed on {networkLabel} yet. Deployment costs a small STRK fee paid from your account — send STRK to this address first:
               </p>
+              {walletAddress && (
+                <button
+                  onClick={copy}
+                  className="w-full flex items-center justify-between gap-2 mb-4 px-3 py-2 rounded-lg bg-black/40 border border-neutral-800 hover:border-neutral-700 transition-colors group"
+                >
+                  <span className="font-mono text-[10px] text-neutral-400 truncate">{walletAddress}</span>
+                  {copied ? <Check className="w-3 h-3 text-emerald-500 flex-shrink-0" /> : <Copy className="w-3 h-3 text-neutral-600 group-hover:text-neutral-400 flex-shrink-0 transition-colors" />}
+                </button>
+              )}
               <p className="text-[10px] text-amber-500/80 mb-6 leading-relaxed">
-                Make sure your wallet has enough STRK/ETH on {networkLabel} to cover the deployment fee.
+                Once funded, click Deploy Account below.
               </p>
               <div className="flex gap-3">
                 <button

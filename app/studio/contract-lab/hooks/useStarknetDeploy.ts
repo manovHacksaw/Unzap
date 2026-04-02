@@ -320,7 +320,7 @@ export function useStarknetDeploy({
     setIsDeployingAccount(true);
     try {
       addLog("Deploying account on-chain...");
-      await szWallet.deploy();
+      await szWallet.deploy({ feeMode: "user_pays" });
       addLog("Account deployed successfully.");
       setShowDeployAccountPrompt(false);
       fetchStrkBalance(walletAddress);
