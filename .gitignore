@@ -42,3 +42,5 @@ next-env.d.ts
 /.claude
 /app/generated/prisma
 lint_output*.txt
+.vercel
+.env*.local

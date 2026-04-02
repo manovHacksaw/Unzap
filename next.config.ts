@@ -1,19 +1,21 @@
 import type { NextConfig } from "next";
 import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const nextConfig: NextConfig = {
   transpilePackages: ["starkzap", "ethers", "@hyperlane-xyz/sdk", "@hyperlane-xyz/multicollateral"],
   productionBrowserSourceMaps: false,
-  experimental: {
-    turbo: false,
-    cpus: 4,
-  },
   webpack: (config) => {
-    config.resolve.alias["@arbitrum/sdk"] = path.resolve(__dirname, "./lib/stubs/arbitrum-sdk.ts");
+    // Alias heavy/broken packages to lightweight stubs
+    config.resolve.alias["@arbitrum/sdk"] = path.resolve(process.cwd(), "./lib/stubs/arbitrum-sdk.ts");
+
+    // Ensure proper fallbacks for node built-ins used in browser bundles
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+    };
+
     return config;
   },
 };
