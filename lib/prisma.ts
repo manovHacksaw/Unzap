@@ -5,11 +5,12 @@ import { Pool } from "pg";
 function normalizeDatabaseUrl(rawUrl: string) {
     try {
         const parsed = new URL(rawUrl);
-        const isSupabaseHost =
-            parsed.hostname.endsWith(".supabase.co") || parsed.hostname.endsWith(".pooler.supabase.com");
+        const isSupabasePoolerHost = parsed.hostname.endsWith(".pooler.supabase.com");
+        const isTransactionPooler = isSupabasePoolerHost && parsed.port === "6543";
 
-        if (isSupabaseHost && !parsed.searchParams.has("sslmode")) {
-            parsed.searchParams.set("sslmode", "verify-full");
+        // Supabase recommends transaction mode + pgbouncer for Prisma in serverless runtimes.
+        if (isTransactionPooler && !parsed.searchParams.has("pgbouncer")) {
+            parsed.searchParams.set("pgbouncer", "true");
         }
 
         return parsed.toString();

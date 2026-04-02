@@ -9,6 +9,8 @@ const navLinks = [
     { label: "SOLUTIONS", href: "/#solutions" },
     { label: "DEVELOPERS", href: "/#developers" },
     { label: "RESOURCES", href: "/#resources" },
+    { label: "GITHUB", href: "https://github.com/manovHacksaw/Unzap", external: true },
+    { label: "X", href: "https://x.com/manovmandal", external: true },
 ];
 
 const navVariants = {
@@ -64,13 +66,25 @@ export default function Navbar() {
                         key={link.label}
                         variants={itemVariants}
                     >
-                        <Link
-                            href={link.href}
-                            className="flex items-center gap-1 text-[11px] text-neutral-400 uppercase tracking-[0.15em] hover:text-neutral-200 transition-colors"
-                        >
-                            {link.label}
-                            <span className="text-[9px] leading-none">↗</span>
-                        </Link>
+                        {link.external ? (
+                            <a
+                                href={link.href}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-1 text-[11px] text-neutral-400 uppercase tracking-[0.15em] hover:text-neutral-200 transition-colors"
+                            >
+                                {link.label}
+                                <span className="text-[9px] leading-none">↗</span>
+                            </a>
+                        ) : (
+                            <Link
+                                href={link.href}
+                                className="flex items-center gap-1 text-[11px] text-neutral-400 uppercase tracking-[0.15em] hover:text-neutral-200 transition-colors"
+                            >
+                                {link.label}
+                                <span className="text-[9px] leading-none">↗</span>
+                            </Link>
+                        )}
                     </motion.div>
                 ))}
             </nav>
