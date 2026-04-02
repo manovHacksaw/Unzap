@@ -95,11 +95,12 @@ export default function LogoParticles({ className }: { className?: string }) {
     let textImageData: ImageData | null = null
 
     function createTextImage() {
-      if (!ctx || !canvas) return
+      if (!ctx || !canvas || canvas.width === 0 || canvas.height === 0) return
 
       ctx.save()
 
-      const logoSize = isMobile ? 487 : 702
+      const containerMinSize = Math.min(canvas.width, canvas.height)
+      const logoSize = isMobile ? containerMinSize * 0.92 : containerMinSize * 0.85
       const logoScale = logoSize / LOGO_VIEWBOX.width
 
       ctx.translate(
@@ -159,6 +160,7 @@ export default function LogoParticles({ className }: { className?: string }) {
     }
 
     function createInitialParticles() {
+      if (!canvas || canvas.width === 0 || canvas.height === 0) return
       const baseParticleCount = 12000
       const particleCount = Math.floor(
         baseParticleCount * Math.sqrt((canvas.width * canvas.height) / (1920 * 1080)),
@@ -172,7 +174,10 @@ export default function LogoParticles({ className }: { className?: string }) {
     let animationFrameId: number
 
     function animate() {
-      if (!ctx || !canvas) return
+      if (!ctx || !canvas || canvas.width === 0 || canvas.height === 0) {
+        animationFrameId = requestAnimationFrame(() => animate())
+        return
+      }
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       const { x: mouseX, y: mouseY } = mousePositionRef.current
