@@ -1,13 +1,18 @@
 import type { NextConfig } from "next";
 import path from "path";
 
-// Turbopack requires forward-slash paths even on Windows
-const toForwardSlash = (p: string) => p.replace(/\\/g, "/");
+// Absolute paths for webpack (works cross-platform)
+const webpackStubs = {
+  "@arbitrum/sdk": path.resolve(process.cwd(), "./lib/stubs/arbitrum-sdk.ts"),
+  "@hyperlane-xyz/sdk": path.resolve(process.cwd(), "./lib/stubs/hyperlane-sdk.ts"),
+  "@hyperlane-xyz/registry": path.resolve(process.cwd(), "./lib/stubs/hyperlane-registry.ts"),
+};
 
-const stubs = {
-  "@arbitrum/sdk": toForwardSlash(path.resolve(process.cwd(), "./lib/stubs/arbitrum-sdk.ts")),
-  "@hyperlane-xyz/sdk": toForwardSlash(path.resolve(process.cwd(), "./lib/stubs/hyperlane-sdk.ts")),
-  "@hyperlane-xyz/registry": toForwardSlash(path.resolve(process.cwd(), "./lib/stubs/hyperlane-registry.ts")),
+// Turbopack on Windows does NOT support absolute paths in resolveAlias — use relative paths
+const turbopackStubs = {
+  "@arbitrum/sdk": "./lib/stubs/arbitrum-sdk.ts",
+  "@hyperlane-xyz/sdk": "./lib/stubs/hyperlane-sdk.ts",
+  "@hyperlane-xyz/registry": "./lib/stubs/hyperlane-registry.ts",
 };
 
 const nextConfig: NextConfig = {
@@ -24,13 +29,13 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ["starkzap", "ethers"],
   productionBrowserSourceMaps: false,
-  // Turbopack config — used by `next dev`
+  // Turbopack — used by `next dev`
   turbopack: {
-    resolveAlias: stubs,
+    resolveAlias: turbopackStubs,
   },
-  // Webpack config — used by `next build`
+  // Webpack — used by `next build` and Vercel
   webpack: (config) => {
-    Object.assign(config.resolve.alias, stubs);
+    Object.assign(config.resolve.alias, webpackStubs);
 
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -39,7 +44,6 @@ const nextConfig: NextConfig = {
       tls: false,
     };
 
-    // Limit parallelism to reduce peak memory during build
     config.parallelism = 1;
 
     return config;
