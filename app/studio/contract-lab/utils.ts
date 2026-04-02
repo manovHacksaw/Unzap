@@ -1,4 +1,33 @@
-import type { CompileError, LiveDiagnostic, SearchMatch } from "./types";
+import type { AbiEntry, CompileError, LiveDiagnostic, SearchMatch } from "./types";
+
+export function normalizeAbiEntries(value: unknown): AbiEntry[] {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value.filter(
+      (entry): entry is AbiEntry =>
+        !!entry && typeof entry === "object" && typeof (entry as AbiEntry).type === "string"
+    );
+  }
+
+  if (typeof value === "string") {
+    try {
+      return normalizeAbiEntries(JSON.parse(value));
+    } catch {
+      return [];
+    }
+  }
+
+  if (typeof value === "object" && "abi" in value) {
+    return normalizeAbiEntries((value as { abi?: unknown }).abi);
+  }
+
+  return [];
+}
+
+export function formatAbiEntries(abi: AbiEntry[]) {
+  return JSON.stringify(abi, null, 2);
+}
 
 export function escapeHtml(value: string) {
   return value
