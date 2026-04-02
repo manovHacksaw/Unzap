@@ -731,7 +731,7 @@ export function InteractPanel({
             <Tooltip>
               <TooltipTrigger>
                 <a
-                  href={`${netConfig.voyager}/contract/${effectiveAddress}`}
+                  href={`${netConfig.explorer}/contract/${effectiveAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-0.5"
@@ -739,7 +739,7 @@ export function InteractPanel({
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </TooltipTrigger>
-              <TooltipContent side="top" className="text-[10px]">View on Voyager</TooltipContent>
+              <TooltipContent side="top" className="text-[10px]">View on Explorer</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -986,7 +986,7 @@ export function InteractPanel({
                           <Tooltip>
                             <TooltipTrigger>
                               <a
-                                href={`${netConfig.voyager}/tx/${entry.txHash}`}
+                                href={`${netConfig.explorer}/tx/${entry.txHash}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-0.5"
@@ -994,7 +994,7 @@ export function InteractPanel({
                                 <ArrowUpRight className="w-3 h-3" />
                               </a>
                             </TooltipTrigger>
-                            <TooltipContent className="text-[9px]">View tx on Voyager</TooltipContent>
+                            <TooltipContent className="text-[9px]">View tx on Explorer</TooltipContent>
                           </Tooltip>
                         )}
                         <CopyButton text={entry.result || entry.error || ""} />
@@ -1052,7 +1052,7 @@ export function InteractPanel({
                 </TooltipTrigger>
                 <TooltipContent className="text-[10px]">Copy address</TooltipContent>
               </Tooltip>
-              <a href={`${netConfig.voyager}/contract/${effectiveAddress}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground/40 hover:text-amber-400 transition-colors">
+              <a href={`${netConfig.explorer}/contract/${effectiveAddress}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground/40 hover:text-amber-400 transition-colors">
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
@@ -1306,7 +1306,7 @@ export function InteractPanel({
                       <Tooltip>
                         <TooltipTrigger>
                           <a
-                            href={`${netConfig.voyager}/tx/${entry.txHash}`}
+                            href={`${netConfig.explorer}/tx/${entry.txHash}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-1"
@@ -1314,7 +1314,7 @@ export function InteractPanel({
                             <ArrowUpRight className="w-3.5 h-3.5" />
                           </a>
                         </TooltipTrigger>
-                        <TooltipContent className="text-[10px]">View on Voyager</TooltipContent>
+                        <TooltipContent className="text-[10px]">View on Explorer</TooltipContent>
                       </Tooltip>
                     )}
                     <CopyButton text={entry.result || entry.error || ""} />

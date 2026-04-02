@@ -14,7 +14,8 @@ import {
   Activity,
   Box,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,7 @@ function HashValue({
           target="_blank"
           rel="noopener noreferrer"
           className="p-1 rounded hover:bg-white/5 text-neutral-600 hover:text-amber-400 transition-colors"
-          title="View on Voyager"
+          title="View on Explorer"
         >
           <ExternalLink className="w-3 h-3" />
         </a>
@@ -88,7 +89,7 @@ interface DeployPanelProps {
   activeBuildData: CompileSuccess | null;
   buildStatus: BuildStatus;
   network: "mainnet" | "sepolia";
-  netConfig: { label: string; voyager: string };
+  netConfig: { label: string; explorer: string };
   handleNetworkSwitch: (n: "mainnet" | "sepolia") => void;
   starknetAccount: Account | WalletAccount | null;
   walletAddress: string;
@@ -144,6 +145,16 @@ export function DeployPanel({
   isWalletConnecting,
   notify,
 }: DeployPanelProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const activeStepRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to active step
+  useEffect(() => {
+    if (activeStepRef.current) {
+      activeStepRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [deploySteps]);
+
   const isBuilt = !!activeBuildData && buildStatus === "success";
   const isDeclared = deployStatus === "declared" || deployStatus === "deploying" || deployStatus === "deployed";
   const isDeployed = deployStatus === "deployed";
@@ -183,7 +194,7 @@ export function DeployPanel({
 
   return (
     <ScrollArea className="h-full">
-    <div className="flex flex-col min-h-full bg-transparent">
+    <div ref={scrollRef} className="flex flex-col min-h-full bg-transparent">
 
       {/* ── Contract Header ──────────────────────────────────────────── */}
       <div className="px-5 pt-6 pb-5 border-b border-neutral-800">
@@ -223,14 +234,7 @@ export function DeployPanel({
               <div className="mt-2 text-[14px] font-semibold tracking-tight text-white">{nextStep}</div>
             </div>
 
-            <div className="flex flex-col items-end gap-2">
-              <div className="rounded-full border border-neutral-800 bg-black/20 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
-                {network === "mainnet" ? "Mainnet" : "Sepolia"}
-              </div>
-              <div className="rounded-full border border-neutral-800 bg-black/20 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
-                {walletModeLabel}
-              </div>
-            </div>
+
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2">
@@ -395,7 +399,7 @@ export function DeployPanel({
             {classHash ? (
               <HashValue
                 value={classHash}
-                href={`${netConfig.voyager}/class/${classHash}`}
+                href={`${netConfig.explorer}/class/${classHash}`}
                 onCopy={() =>
                   notify?.({
                     tone: "success",
@@ -416,7 +420,7 @@ export function DeployPanel({
             {contractAddress ? (
               <HashValue
                 value={contractAddress}
-                href={`${netConfig.voyager}/contract/${contractAddress}`}
+                href={`${netConfig.explorer}/contract/${contractAddress}`}
                 onCopy={() =>
                   notify?.({
                     tone: "success",
@@ -482,42 +486,90 @@ export function DeployPanel({
             <Activity className="w-3 h-3 text-neutral-600" />
             <SectionLabel>Pipeline</SectionLabel>
           </div>
-          <div className="relative pl-1 space-y-6">
-            <div className="absolute left-[7px] top-2 bottom-2 w-px bg-black/30" />
-            {deploySteps.map((step) => (
-              <div key={step.id} className="relative pl-7">
-                <div className={clsx(
-                  "absolute left-0 top-1 w-3 h-3 rounded-full border-2 border-black/60 transition-all duration-500",
-                  step.status === "done"
-                    ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-                    : step.status === "active"
-                    ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
-                    : step.status === "error"
-                    ? "bg-red-500"
-                    : "bg-neutral-800"
-                )}>
-                  {step.status === "active" && (
-                    <div className="absolute inset-0 rounded-full animate-ping bg-amber-500 opacity-30" />
-                  )}
-                </div>
-                <p className={clsx(
-                  "text-[11px] font-medium transition-colors",
-                  step.status === "idle" ? "text-neutral-700" : "text-neutral-200"
-                )}>
-                  {step.label}
-                </p>
-                {step.detail && (
-                  <p className="text-[9px] font-mono text-neutral-600 mt-0.5 bg-black/20 px-1.5 py-0.5 rounded w-fit border border-border/40">
-                    {step.detail}
-                  </p>
-                )}
-                {step.status === "error" && (
-                  <p className="mt-1.5 text-[9px] text-red-400 leading-relaxed">
-                    Transaction failed. Check salt or contract state.
-                  </p>
-                )}
-              </div>
-            ))}
+          <div className="space-y-4">
+            <AnimatePresence mode="popLayout">
+              {deploySteps.map((step, index) => {
+                const isActive = step.status === "active";
+                const isLast = index === deploySteps.length - 1;
+                
+                return (
+                  <motion.div
+                    key={step.id}
+                    ref={isActive ? activeStepRef : null}
+                    layout
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ 
+                      opacity: 1, 
+                      x: 0,
+                    }}
+                    className={clsx(
+                      "group relative flex gap-4 px-4 py-3 rounded-xl transition-all duration-300",
+                      isActive ? "bg-neutral-800/30 border border-neutral-800 shadow-[0_4px_20px_rgba(0,0,0,0.3)]" : "border border-transparent"
+                    )}
+                  >
+                    {/* Circle & Line Column */}
+                    <div className="relative flex flex-col items-center shrink-0 w-4">
+                      {!isLast && (
+                        <div className="absolute top-6 bottom-[-16px] w-px bg-neutral-800/50" />
+                      )}
+                      <div className={clsx(
+                        "relative top-1 w-3.5 h-3.5 rounded-full border-2 border-black/60 transition-all duration-500 z-10",
+                        step.status === "done"
+                          ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                          : isActive
+                          ? "bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]"
+                          : step.status === "error"
+                          ? "bg-red-500"
+                          : "bg-neutral-800"
+                      )}>
+                        {isActive && (
+                          <motion.div 
+                            className="absolute inset-0 rounded-full bg-amber-500"
+                            animate={{ scale: [1, 2, 1], opacity: [0.4, 0, 0.4] }}
+                            transition={{ repeat: Infinity, duration: 1.5 }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Content Column */}
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                      <p className={clsx(
+                        "text-[11px] font-bold tracking-tight transition-colors",
+                        step.status === "idle" ? "text-neutral-700" : isActive ? "text-white" : "text-neutral-400"
+                      )}>
+                        {step.label}
+                      </p>
+                      
+                      {step.detail && (
+                        <motion.p 
+                          initial={{ opacity: 0, y: 2 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-[9px] font-mono text-neutral-500 bg-black/40 px-2 py-0.5 rounded border border-neutral-800/50 w-fit"
+                        >
+                          {step.detail}
+                        </motion.p>
+                      )}
+                      
+                      {step.status === "error" && (
+                        <p className="text-[9px] font-medium text-red-500/80 leading-relaxed mt-1">
+                          Hardware processing failed. Verify class state.
+                        </p>
+                      )}
+                    </div>
+
+                    {isActive && (
+                      <motion.div
+                        layoutId="active-glow"
+                        className="absolute inset-0 rounded-xl bg-amber-500/[0.02] pointer-events-none"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      />
+                    )}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         </div>
       )}

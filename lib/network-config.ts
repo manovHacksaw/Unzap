@@ -8,6 +8,7 @@ export interface NetworkConfig {
   rpcUrl: string;
   starkscan: string;
   voyager: string;
+  explorer: string; // preferred explorer: starkscan on mainnet, voyager on sepolia
   chainId: ChainId;
 }
 
@@ -19,6 +20,7 @@ export function getNetworkConfig(network: Network): NetworkConfig {
       rpcUrl: "https://starknet-mainnet.public.blastapi.io/rpc/v0_8",
       starkscan: "https://starkscan.co",
       voyager: "https://voyager.online",
+      explorer: "https://starkscan.co",
       chainId: ChainId.MAINNET,
     };
   }
@@ -28,6 +30,7 @@ export function getNetworkConfig(network: Network): NetworkConfig {
     rpcUrl: "https://starknet-sepolia.public.blastapi.io/rpc/v0_8",
     starkscan: "https://sepolia.starkscan.co",
     voyager: "https://sepolia.voyager.online",
+    explorer: "https://sepolia.voyager.online",
     chainId: ChainId.SEPOLIA,
   };
 }
