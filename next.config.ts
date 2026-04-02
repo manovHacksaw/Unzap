@@ -1,10 +1,13 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+// Turbopack requires forward-slash paths even on Windows
+const toForwardSlash = (p: string) => p.replace(/\\/g, "/");
+
 const stubs = {
-  "@arbitrum/sdk": path.resolve(process.cwd(), "./lib/stubs/arbitrum-sdk.ts"),
-  "@hyperlane-xyz/sdk": path.resolve(process.cwd(), "./lib/stubs/hyperlane-sdk.ts"),
-  "@hyperlane-xyz/registry": path.resolve(process.cwd(), "./lib/stubs/hyperlane-registry.ts"),
+  "@arbitrum/sdk": toForwardSlash(path.resolve(process.cwd(), "./lib/stubs/arbitrum-sdk.ts")),
+  "@hyperlane-xyz/sdk": toForwardSlash(path.resolve(process.cwd(), "./lib/stubs/hyperlane-sdk.ts")),
+  "@hyperlane-xyz/registry": toForwardSlash(path.resolve(process.cwd(), "./lib/stubs/hyperlane-registry.ts")),
 };
 
 const nextConfig: NextConfig = {
