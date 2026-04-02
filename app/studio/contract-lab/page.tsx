@@ -13,14 +13,13 @@ import {
   Search,
   Box,
   History,
-  Info,
   ChevronDown,
+  ChevronRight,
   FileCode,
   Layout,
   Activity,
   Zap,
   Shield,
-  ChevronRight,
   Trash2,
   CheckCircle2,
   AlertCircle,
@@ -73,6 +72,7 @@ import { AuthModal } from "./components/AuthModal";
 import { DeployAccountPrompt } from "./components/DeployAccountPrompt";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { InteractPanel } from "./components/InteractPanel";
+import { DeployPanel } from "./components/DeployPanel";
 
 export default function StarkzapIDE() {
   // --- Privy Auth ---
@@ -1391,256 +1391,42 @@ export default function StarkzapIDE() {
               <div onMouseDown={() => setIsResizingRightPanel(true)} className={clsx("relative w-2 cursor-col-resize border-l border-neutral-900 bg-[#0b0b0b] group", isResizingRightPanel && "bg-amber-500/10")}>
                 <div className="absolute left-1/2 top-1/2 h-16 w-px -translate-x-1/2 -translate-y-1/2 bg-neutral-900 transition-colors group-hover:bg-neutral-700" />
               </div>
-              <div className="flex flex-col h-full flex-1 border-l border-neutral-900 bg-[#0d0d0d] overflow-hidden">
-                <div className="flex items-center h-10 px-5 bg-black/40 backdrop-blur-md border-b border-neutral-900/50 flex-shrink-0 justify-between">
-                  <div className="flex items-center gap-2">
-                    <Box className="w-3.5 h-3.5 text-amber-500" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">Deploy & Config</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-                    <Activity className="w-2.5 h-2.5 text-amber-500" />
-                    <span className="text-[8px] font-black uppercase tracking-tighter text-amber-500">Live</span>
+              <div className="flex flex-col h-full flex-1 border-l border-neutral-900 bg-[#0e0e0e] overflow-hidden">
+                <div className="flex items-center h-10 px-5 bg-black/30 border-b border-neutral-900/50 flex-shrink-0 justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">Deploy</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="text-[9px] text-neutral-600 uppercase tracking-wider">Live</span>
                   </div>
                 </div>
-
-                <div className="flex-1 overflow-y-auto p-5 pb-12">
-                  <div className="-m-5 divide-y divide-neutral-900 border-b border-neutral-900/50">
-                    <div className="px-5 py-6 bg-black/40 border-b border-neutral-900/30">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                          <FileCode className="w-4 h-4 text-amber-500" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">Contract Ready</span>
-                          <span className="text-xs text-white font-bold">{activeFile?.filename || "No file selected"}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between mt-4">
-                        <span className="text-[9px] uppercase tracking-widest text-neutral-600 font-bold">Metadata / ABI</span>
-                        {buildOutputsByFile[activeFileId] ? (
-                          <div className="flex items-center gap-1.5 text-[9px] text-emerald-500 font-bold"><CheckCircle2 className="w-3 h-3" />Generated</div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 text-[9px] text-neutral-700 italic">Waiting for build</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="-m-5 divide-y divide-neutral-900">
-                    {/* Network row */}
-                    <div className="flex items-center justify-between px-5 py-4 bg-black/20 backdrop-blur-sm">
-                      <div className="flex items-center gap-2.5">
-                        <div className="relative">
-                          <div className={clsx("w-2 h-2 rounded-full", network === "mainnet" ? "bg-amber-500" : "bg-emerald-500")} />
-                          <div className={clsx("absolute inset-0 w-2 h-2 rounded-full animate-ping opacity-40", network === "mainnet" ? "bg-amber-500" : "bg-emerald-500")} />
-                        </div>
-                        <div className="flex flex-col -gap-1">
-                          <span className="text-[10px] text-neutral-200 font-bold tracking-tight">{netConfig.label}</span>
-                          <span className="text-[8px] text-neutral-600 font-medium uppercase tracking-widest">Active Link</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center p-0.5 rounded-lg bg-neutral-900/50 border border-neutral-800/50 overflow-hidden text-[8px] font-black uppercase tracking-widest gap-0.5">
-                        <button onClick={() => handleNetworkSwitch("mainnet")} className={clsx("px-3 py-1.5 rounded-md transition-all", network === "mainnet" ? "bg-amber-500 text-black shadow-lg" : "text-neutral-500 hover:text-neutral-300")}>Main</button>
-                        <button onClick={() => handleNetworkSwitch("sepolia")} className={clsx("px-3 py-1.5 rounded-md transition-all", network === "sepolia" ? "bg-emerald-500 text-black shadow-lg" : "text-neutral-500 hover:text-neutral-300")}>Test</button>
-                      </div>
-                    </div>
-
-                    {/* Wallet section */}
-                    {starknetAccount ? (
-                      <div className="px-5 py-5 space-y-4 bg-black/40">
-                        <div className="flex items-center justify-between">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[8px] text-neutral-600 uppercase tracking-[0.3em] font-black">{walletType === "privy" ? "Privy Protocol" : "Starknet Identity"}</span>
-                            <div className="flex items-center gap-1.5" onClick={() => { navigator.clipboard.writeText(walletAddress); }}>
-                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                              <span className="font-mono text-[11px] text-neutral-200 cursor-copy active:scale-95">{walletAddress.slice(0, 12)}…{walletAddress.slice(-8)}</span>
-                            </div>
-                          </div>
-                          <button onClick={disconnectWallet} className="p-2 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-red-500/30 hover:bg-red-500/5 text-neutral-600 hover:text-red-400 transition-all"><X className="w-3.5 h-3.5" /></button>
-                        </div>
-                        <div className="relative overflow-hidden p-[1px] rounded-xl bg-gradient-to-br from-neutral-800/50 to-transparent">
-                          <div className="relative flex items-center justify-between p-4 rounded-[11px] bg-neutral-950/80 backdrop-blur-xl">
-                            <div className="flex items-center gap-3">
-                              <div className="w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                                <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                              </div>
-                              <div className="flex flex-col -gap-0.5">
-                                <span className="text-[9px] text-neutral-600 font-bold uppercase tracking-wider">STRK Balance</span>
-                                <div className="flex items-center gap-2">
-                                  {isFetchingBalance ? (
-                                    <div className="h-4 w-16 bg-neutral-900 animate-pulse rounded" />
-                                  ) : (
-                                    <span className="text-[14px] font-mono text-white font-bold tracking-tight">{strkBalance || "0.00"}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <button onClick={() => fetchStrkBalance(walletAddress)} className="p-2 rounded-lg hover:bg-white/5 text-neutral-700 hover:text-neutral-400 transition-colors">
-                              <RefreshCw className={clsx("w-3.5 h-3.5", isFetchingBalance && "animate-spin")} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="px-5 py-4">
-                        <button onClick={() => setShowAuthModal(true)} className="w-full py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all bg-amber-500 text-black hover:bg-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-                          Connect Wallet
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Fee note */}
-                    <div className="px-6 py-4 bg-neutral-950/20">
-                      <div className="flex gap-3">
-                        <Info className="w-3.5 h-3.5 text-neutral-600 mt-0.5" />
-                        <p className="text-[10px] text-neutral-600 leading-relaxed font-medium">
-                          Declare & Deploy require <span className="text-neutral-400">STRK</span> for on-chain fees. Starknet no longer uses ETH for standard contract execution. Sponsored writes remain gasless via AVNU.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Contract Ready Metadata */}
-                    {activeBuildData && (
-                      <div className="px-5 py-4 bg-amber-500/5 mb-4 border-b border-amber-500/10 animate-in fade-in slide-in-from-top-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20"><Box className="w-4 h-4 text-amber-500" /></div>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase text-amber-500/70 tracking-widest leading-none">Contract Ready</span>
-                            <span className="text-sm font-bold text-neutral-200 mt-0.5">{activeFile?.filename}</span>
-                          </div>
-                        </div>
-                        <div className="mt-4 flex items-center gap-4">
-                          <div className="flex flex-col gap-1"><span className="text-[8px] font-bold text-neutral-600 uppercase">ABI Entries</span><span className="text-xs font-mono text-neutral-400">{activeBuildData.abi?.length || 0}</span></div>
-                          <div className="w-px h-4 bg-neutral-900" />
-                          <div className="flex flex-col gap-1"><span className="text-[8px] font-bold text-neutral-600 uppercase">Build Size</span><span className="text-xs font-mono text-neutral-400">{(JSON.stringify(activeBuildData.casm || {}).length / 1024).toFixed(1)} KB</span></div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Artifacts */}
-                    <div className="px-5 py-3 space-y-3">
-                      <div className="space-y-1">
-                        <span className="text-[9px] uppercase tracking-widest text-neutral-600">Class Hash</span>
-                        {classHash ? (
-                          <div className="flex items-center justify-between">
-                            <span className="font-mono text-[10px] text-neutral-400">{classHash.slice(0, 14)}…{classHash.slice(-6)}</span>
-                            <div className="flex items-center gap-2">
-                              <CopyButton text={classHash} />
-                              <a href={`${netConfig.voyager}/class/${classHash}`} target="_blank" rel="noopener noreferrer" className="text-[9px] text-neutral-700 hover:text-amber-500 transition-colors font-mono">voyager ↗</a>
-                            </div>
-                          </div>
-                        ) : <p className="text-[10px] text-neutral-700 italic">not declared</p>}
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[9px] uppercase tracking-widest text-neutral-600">Contract Address</span>
-                        {contractAddress ? (
-                          <div className="flex items-center justify-between">
-                            <span className="font-mono text-[10px] text-neutral-400">{contractAddress.slice(0, 14)}…{contractAddress.slice(-6)}</span>
-                            <div className="flex items-center gap-2">
-                              <CopyButton text={contractAddress} />
-                              <a href={`${netConfig.voyager}/contract/${contractAddress}`} target="_blank" rel="noopener noreferrer" className="text-[9px] text-neutral-700 hover:text-amber-500 transition-colors font-mono">voyager ↗</a>
-                            </div>
-                          </div>
-                        ) : <p className="text-[10px] text-neutral-700 italic">not deployed</p>}
-                      </div>
-                    </div>
-
-                    {/* Constructor args */}
-                    {deployStatus === "declared" && (() => {
-                      const ctorAbi = activeBuildData?.abi?.find((e: { type: string }) => e.type === "constructor");
-                      const ctorInputs: Array<{ name: string; type: string }> = ctorAbi?.inputs ?? [];
-                      if (ctorInputs.length === 0) return null;
-                      return (
-                        <div className="px-5 py-3 space-y-3">
-                          <span className="text-[9px] uppercase tracking-widest text-neutral-600">Constructor</span>
-                          {ctorInputs.map((inp: { name: string; type: string }) => (
-                            <div key={inp.name}>
-                              <label className="text-[9px] font-mono text-neutral-600">{inp.name} <span className="text-neutral-700">{inp.type}</span></label>
-                              <input value={constructorInputs[inp.name] ?? ""} onChange={(e) => setConstructorInputs((prev) => ({ ...prev, [inp.name]: e.target.value }))} placeholder="0x... or decimal" className="w-full mt-1 bg-transparent border-b border-neutral-800 py-1 text-[11px] font-mono outline-none focus:border-amber-500/40 text-neutral-300 placeholder:text-neutral-800" />
-                            </div>
-                          ))}
-                          <div className="flex items-center justify-between">
-                            <label className="text-[9px] font-mono text-neutral-600">salt <span className="text-neutral-700">felt252</span></label>
-                            <button onClick={() => setSalt(Math.floor(Math.random() * 1000000).toString())} className="p-1 hover:text-amber-500 transition-colors text-neutral-700" title="Randomize salt"><RefreshCw className="w-2.5 h-2.5" /></button>
-                          </div>
-                          <input value={salt} onChange={(e) => setSalt(e.target.value)} placeholder="0" className="w-full mt-1 bg-transparent border-b border-neutral-800 py-1 text-[11px] font-mono outline-none focus:border-amber-500/40 text-neutral-300 placeholder:text-neutral-800" />
-                        </div>
-                      );
-                    })()}
-
-                    {/* Deployment Pipeline */}
-                    {deploySteps.length > 0 && (
-                      <div className="px-6 py-8 bg-black/40 border-y border-neutral-900/50">
-                        <div className="flex items-center gap-2 mb-6">
-                          <Activity className="w-3.5 h-3.5 text-neutral-500" />
-                          <span className="text-[9px] uppercase tracking-[0.2em] font-black text-neutral-600">Execution Pipeline</span>
-                        </div>
-                        <div className="relative pl-1">
-                          <div className="absolute left-[7px] top-2 bottom-2 w-[1px] bg-neutral-900" />
-                          <div className="space-y-8">
-                            {deploySteps.map((step) => (
-                              <div key={step.id} className="relative pl-8">
-                                <div className={clsx(
-                                  "absolute left-0 top-1 w-3.5 h-3.5 rounded-full border-2 border-black z-10 transition-all duration-500",
-                                  step.status === "done" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" :
-                                    step.status === "active" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" :
-                                      step.status === "error" ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" : "bg-neutral-800"
-                                )}>
-                                  {step.status === "active" && <div className="absolute inset-0 rounded-full animate-ping bg-amber-500 opacity-20" />}
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                  <div className={clsx("text-[11px] font-bold tracking-tight transition-colors", step.status === "idle" ? "text-neutral-600" : "text-neutral-200")}>{step.label}</div>
-                                  {step.detail && <div className="text-[9px] font-mono text-neutral-500 bg-neutral-900/40 px-1.5 py-0.5 rounded w-fit border border-neutral-800/50">{step.detail}</div>}
-                                  {step.status === "error" && <div className="mt-2 p-3 rounded-lg bg-red-500/5 border border-red-500/10 text-[9px] text-red-400 font-medium leading-relaxed italic animate-in fade-in slide-in-from-top-1">Transaction failed or address occupied. Double check your salt or contract state.</div>}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="px-5 py-3 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={handleDeclare}
-                          disabled={(!activeBuildData && buildStatus !== "success") || deployStatus !== "idle"}
-                          className={clsx(
-                            "py-2 rounded font-medium text-[11px] transition-all flex items-center justify-center gap-1.5",
-                            deployStatus === "idle" && buildStatus === "success" ? "bg-amber-500 text-black hover:bg-amber-400" :
-                              deployStatus === "declared" || deployStatus === "deployed" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-900" :
-                                "bg-neutral-900 text-neutral-700 cursor-not-allowed"
-                          )}
-                        >
-                          {deployStatus === "declaring" ? <><Loader2 className="w-3 h-3 animate-spin" /> Declaring</> :
-                            deployStatus === "declared" || deployStatus === "deployed" ? <><CheckCircle2 className="w-3 h-3" /> Declared</> : "Declare"}
-                        </button>
-                        <button
-                          onClick={handleDeploy}
-                          disabled={deployStatus !== "declared" || isWalletConnecting}
-                          className={clsx(
-                            "py-2 rounded font-medium text-[11px] transition-all flex items-center justify-center gap-1.5",
-                            deployStatus === "declared" ? "bg-white text-black hover:bg-neutral-100" :
-                              deployStatus === "deployed" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-900" :
-                                "bg-neutral-900 text-neutral-700 cursor-not-allowed"
-                          )}
-                        >
-                          {deployStatus === "deploying" ? <><Loader2 className="w-3 h-3 animate-spin" /> Deploying</> :
-                            deployStatus === "deployed" ? <><CheckCircle2 className="w-3 h-3" /> Deployed</> : "Deploy"}
-                        </button>
-                      </div>
-                      {(deployStatus === "declared" || deployStatus === "deployed") && (
-                        <button
-                          onClick={() => { setDeployStatus("idle"); setClassHash(""); setContractAddress(""); setDeploySteps([]); setConstructorInputs({}); }}
-                          className="w-full py-1.5 text-[10px] text-neutral-700 hover:text-neutral-500 transition-colors"
-                        >
-                          reset
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <DeployPanel
+                  activeFile={activeFile}
+                  activeBuildData={activeBuildData}
+                  buildStatus={buildStatus}
+                  network={network}
+                  netConfig={netConfig}
+                  handleNetworkSwitch={handleNetworkSwitch}
+                  starknetAccount={starknetAccount}
+                  walletAddress={walletAddress}
+                  walletType={walletType}
+                  disconnectWallet={disconnectWallet}
+                  strkBalance={strkBalance}
+                  isFetchingBalance={isFetchingBalance}
+                  fetchStrkBalance={fetchStrkBalance}
+                  setShowAuthModal={setShowAuthModal}
+                  deployStatus={deployStatus}
+                  deploySteps={deploySteps}
+                  classHash={classHash}
+                  contractAddress={contractAddress}
+                  constructorInputs={constructorInputs}
+                  setConstructorInputs={setConstructorInputs}
+                  salt={salt}
+                  setSalt={setSalt}
+                  handleDeclare={handleDeclare}
+                  handleDeploy={handleDeploy}
+                  onReset={() => { setDeployStatus("idle"); setClassHash(""); setContractAddress(""); setDeploySteps([]); setConstructorInputs({}); }}
+                  isWalletConnecting={isWalletConnecting}
+                />
               </div>
             </motion.div>
           )}
