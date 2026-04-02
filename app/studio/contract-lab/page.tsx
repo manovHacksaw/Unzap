@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  TestTube,
   RefreshCw,
   X,
   Edit2,
@@ -33,6 +34,7 @@ import {
   XCircle,
   FileText,
   Terminal,
+
 } from "lucide-react";
 import { clsx } from "clsx";
 import { Button } from "@/components/ui/button";
@@ -878,8 +880,8 @@ export default function StarkzapIDE() {
           </div>
           <div className="w-px h-4 bg-border" />
           <div className="flex items-center gap-2">
-            <Zap className={clsx("w-3.5 h-3.5", accentColor, settings.theme !== 'mono' && "fill-current")} />
-            <span className="text-sm font-semibold text-foreground/90">Starkzap Studio</span>
+            <TestTube className={clsx("w-3.5 h-3.5", accentColor, settings.theme !== 'mono' && "fill-current")} />
+            <span className="text-sm font-semibold text-foreground/90">Contract Lab</span>
           </div>
         </div>
         {/* Right: build button + status badge + settings */}
