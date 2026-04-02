@@ -19,6 +19,7 @@ import {
   Layout,
   Activity,
   Zap,
+  TestTube,
   Shield,
   Trash2,
   CheckCircle2,
@@ -1450,8 +1451,8 @@ export default function StarkzapIDE() {
           </div>
           <div className="w-px h-4 bg-neutral-800" />
           <div className="flex items-center gap-3 min-w-0">
-            <Zap className={clsx("w-3.5 h-3.5", accentColor, settings.theme !== 'mono' && "fill-current")} />
-            <div className="text-sm font-semibold text-foreground/90">Starkzap Studio</div>
+            <TestTube className={clsx("w-3.5 h-3.5", accentColor)} />
+            <div className="text-sm font-semibold text-foreground/90">Contract Lab</div>
           </div>
           <div className="hidden xl:flex items-center gap-4 min-w-0">
             {workspaceSignals.map((signal) => (

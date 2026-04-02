@@ -2,6 +2,24 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { privy } from "@/lib/privy";
 
+function isDatabaseUnavailableError(error: unknown) {
+    const err = error as { code?: string; message?: string };
+    const message = err.message?.toLowerCase() ?? "";
+
+    return (
+        err.code === "P1001" ||
+        message.includes("can't reach database server") ||
+        message.includes("connect timeout") ||
+        message.includes("timed out") ||
+        message.includes("enotfound") ||
+        message.includes("econnrefused")
+    );
+}
+
+function getDatabaseUnavailableResponseMessage() {
+    return "Database temporarily unavailable. In production, point DATABASE_URL to the Supabase transaction pooler URL and use DIRECT_DATABASE_URL only for Prisma CLI and migrations.";
+}
+
 export async function GET(req: Request) {
     try {
         const header = req.headers.get("authorization");
@@ -21,6 +39,19 @@ export async function GET(req: Request) {
 
         return NextResponse.json({ deployments, transactions });
     } catch (error: any) {
+        if (isDatabaseUnavailableError(error)) {
+            console.warn("GET History database unavailable:", {
+                message: error.message,
+                code: error.code,
+            });
+            return NextResponse.json({
+                deployments: [],
+                transactions: [],
+                databaseUnavailable: true,
+                message: getDatabaseUnavailableResponseMessage(),
+            });
+        }
+
         console.error("GET History failed:", {
           message: error.message,
           code: error.code,
@@ -89,6 +120,18 @@ export async function POST(req: Request) {
         }
     } catch (error: unknown) {
         const err = error as Error;
+
+        if (isDatabaseUnavailableError(err)) {
+            console.warn("POST History database unavailable:", {
+                message: err.message,
+                code: (err as { code?: string }).code,
+            });
+            return NextResponse.json(
+                { error: "Database unavailable", details: getDatabaseUnavailableResponseMessage() },
+                { status: 503 }
+            );
+        }
+
         console.error("POST History failed:", err);
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }

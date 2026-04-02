@@ -117,18 +117,8 @@ export default function UnzapLanding() {
         {/* Right column - CTA */}
         <motion.div
           layout
-          className="order-2 flex flex-col justify-between gap-6 py-2 xl:order-3 xl:basis-[24%] xl:py-6 xl:pl-4 will-change-transform"
+          className="order-2 flex flex-col justify-end gap-6 py-2 xl:order-3 xl:basis-[24%] xl:items-end xl:py-6 xl:pl-4 will-change-transform"
         >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: phase >= 3 ? 1 : 0 }}
-            className="flex flex-col items-start gap-3 xl:items-end"
-          >
-            <p className="hidden max-w-sm text-sm leading-relaxed text-neutral-500 xl:block xl:text-right">
-              Start in Contract Lab. It is the clearest path from a Cairo file to a live Starknet interaction.
-            </p>
-          </motion.div>
-
           <AnimatePresence mode="wait">
             {phase >= 3 && <CTASection key="cta-section" />}
           </AnimatePresence>

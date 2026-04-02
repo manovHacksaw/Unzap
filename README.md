@@ -99,9 +99,15 @@ NEXT_PUBLIC_PRIVY_APP_ID=
 NEXT_PUBLIC_AVNU_API_KEY=
 NEXT_PUBLIC_COMPILER_URL=
 DATABASE_URL=
+DIRECT_DATABASE_URL=
 ```
 
 If you are using the contract build flow locally, make sure your compiler service is available at the URL you provide in `NEXT_PUBLIC_COMPILER_URL`.
+
+For deployed/serverless environments backed by Supabase:
+
+- Set `DATABASE_URL` to the Supabase transaction pooler connection string.
+- Set `DIRECT_DATABASE_URL` to the direct database connection string for Prisma CLI, migrations, and schema tooling.
 
 ### Run the app
 
