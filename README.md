@@ -1,104 +1,139 @@
-# ⚡ Unzap — Starkzap Developer Studio
+# Unzap
 
-**AI generates code. Unzap teaches you how it works.**
+<p align="center">
+  <img src="./public/brand/unzap-logo.png" alt="Unzap logo" width="108" />
+</p>
 
-Unzap is a premium interactive developer studio and learning platform for the **Starknet** ecosystem. It bridges the gap between static documentation and black-box execution by providing a "Learning by Doing" environment powered by the **Starkzap SDK**.
+<p align="center">
+  <strong>Starkzap Dev Studio for learning Starknet by doing.</strong>
+</p>
 
-![Unzap Studio](https://raw.githubusercontent.com/manovHacksaw/unzap/main/public/og-image.png)
+<p align="center">
+  Guided flows, live execution, contract deployment, and gasless interaction surfaces built on Starkzap.
+</p>
 
-## 🚀 The Mission
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16.2.1-111111?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16.2.1" />
+  <img src="https://img.shields.io/badge/React-19.2.4-111111?style=flat-square&logo=react&logoColor=61DAFB" alt="React 19.2.4" />
+  <img src="https://img.shields.io/badge/Starknet-starknet.js%209-111111?style=flat-square&logoColor=white" alt="starknet.js 9" />
+  <img src="https://img.shields.io/badge/StarkZap-SDK%20v2-111111?style=flat-square&logoColor=white" alt="StarkZap SDK v2" />
+  <img src="https://img.shields.io/badge/Privy-Auth-111111?style=flat-square&logoColor=white" alt="Privy Auth" />
+</p>
 
-Starknet development is powerful but often complex (Cairo, AA, Paymasters, Sequencers). Unzap removes the mystery by:
-1. **Visualizing Execution**: Showing real-time pipelines of every transaction.
-2. **Interactive Labs**: Letting developers run SDK methods live on Sepolia.
-3. **Structured Curriculum**: A module-based "Developer Academy" to master Native Account Abstraction.
+<p align="center">
+  <img src="./public/previews/contract-lab.png" alt="Unzap Contract Lab preview" width="900" />
+</p>
 
----
+## Overview
 
-## ✨ Key Features
+Unzap is an interactive Starknet developer studio focused on transparency, education, and execution. Instead of treating SDK workflows like a black box, it exposes the full path from writing Cairo to declaring, deploying, interacting, and observing what happens on-chain.
 
-### 🎓 StarkNet Developer Academy
-A structured, module-based learning path that guides you from environment setup to advanced multi-calls.
-- **Environment Setup**: Guided prerequisites for Node.js, Starknet.js, and Scarb.
-- **Core Foundation**: Master Wallet Onboarding and Signer strategies.
-- **Sponsored Payments**: Learn how to use the Unzap Paymaster for gasless transactions.
+The product is designed around one core idea:
 
-### ⛓️ Visual Execution Pipeline
-Stop guessing what happens inside the SDK. Our real-time visualizer tracks your transaction flow:
-`Signer (App) → Paymaster (AVNU) → Sequencer (Starknet L2) → Confirmed`
+`Explain -> Execute -> Visualize -> Copy -> Understand`
 
-### 🧪 Contract Lab (IDE)
-A full-featured Starknet IDE built directly into the studio.
-- Compile and Deploy Cairo contracts.
-- Manage local/remote files.
-- Interact with deployed contracts via auto-generated UIs.
+## Product Surfaces
 
-### ⛽ Native Account Abstraction (AA)
-Built-in support for **Starkzap's** powerful AA features:
-- **Sponsored Transactions**: Onboard users with zero "Dust ETH" requirement.
-- **Atomic Multi-calls**: Execute complex logic (Approve + Swap + Deposit) in a single atomic step.
+### Contract Lab
 
----
+- Write and edit Cairo contracts directly in the browser
+- Build, declare, deploy, and interact from a single workspace
+- Restore wallet sessions, deployment history, and contract interfaces
+- Show execution feedback, gasless flows, and Starknet explorer links inline
 
-## 🛠️ Technical Stack
+### Playground
 
-- **Framework**: [Next.js 15+](https://nextjs.org/) (App Router)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **Blockchain**: [Starknet.js](https://www.starknetjs.com/) & [Starkzap SDK](https://github.com/manovHacksaw/starkzap)
-- **Authentication**: [Privy](https://www.privy.io/) (Embedded/Social Wallets)
-- **Animations**: [Framer Motion](https://www.framer.com/motion/)
-- **UI Components**: [21st.dev](https://21st.dev/) & [Tailwind CSS](https://tailwindcss.com/)
-- **Database**: [Prisma](https://www.prisma.io/)
+- Experiment with Starkzap-powered transaction flows
+- Explore account abstraction, sponsored transactions, and interaction patterns
+- Inspect outputs and behavior in a guided environment
 
----
+### Guided and Visual Learning
 
-## 🚦 Getting Started
+- Break down workflows into understandable steps
+- Surface execution states instead of hiding them behind SDK abstractions
+- Help new Starknet builders connect concepts to real actions
+
+## Why Unzap
+
+Starknet development is powerful, but onboarding often feels fragmented:
+
+- Cairo authoring is separate from deployment and runtime understanding
+- Gasless and account abstraction flows can feel opaque
+- Static docs explain APIs, but not the lived execution path
+
+Unzap closes that gap with a product experience that is equal parts dev tool and learning layer.
+
+## Tech Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- Starkzap SDK v2
+- starknet.js v9
+- Privy
+- Prisma
+
+## Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **Bun**: (Recommended) or NPM/PNPM
 
-### Installation
+- Node.js 18+
+- npm or Bun
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/manovHacksaw/unzap.git
-   cd unzap
-   ```
+### Install
 
-2. **Install dependencies**
-   ```bash
-   bun install
-   # or
-   npm install
-   ```
+```bash
+git clone https://github.com/manovHacksaw/Unzap.git
+cd Unzap
+npm install
+```
 
-3. **Configure Environment Variables**
-   Create a `.env.local` file with the following:
-   ```env
-   NEXT_PUBLIC_PRIVY_APP_ID=your_id
-   NEXT_PUBLIC_AVNU_API_KEY=your_key
-   # Add other required keys
-   ```
+### Configure environment
 
-4. **Run the development server**
-   ```bash
-   bun dev
-   ```
+Create `.env.local` with the keys your local setup needs. Common ones used by the app include:
 
-Open [http://localhost:3000/studio](http://localhost:3000/studio) to enter the Dev Studio.
+```env
+NEXT_PUBLIC_PRIVY_APP_ID=
+NEXT_PUBLIC_AVNU_API_KEY=
+NEXT_PUBLIC_COMPILER_URL=
+DATABASE_URL=
+```
 
----
+If you are using the contract build flow locally, make sure your compiler service is available at the URL you provide in `NEXT_PUBLIC_COMPILER_URL`.
 
-## 📖 Learn More
+### Run the app
 
-- [Official Starknet Docs](https://docs.starknet.io/)
-- [Starkzap SDK Documentation](https://github.com/manovHacksaw/starkzap)
-- [Starknet.js Guide](https://www.starknetjs.com/)
+```bash
+npm run dev
+```
 
----
+Then open:
 
-## 📜 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- `http://localhost:3000/` for the landing page
+- `http://localhost:3000/studio` for the studio hub
+- `http://localhost:3000/studio/contract-lab` for Contract Lab
 
-Developed with ❤️ for the Starknet Ecosystem.
+### Useful scripts
+
+```bash
+npm run dev
+npm run build
+npm run lint
+```
+
+## Repository Notes
+
+- Runtime branding assets live in `app/` and `public/`
+- Local-only exports and scratch files are intentionally ignored
+- The root repo should stay production-focused and avoid committing developer machine state
+
+## Preview Assets
+
+- `public/previews/contract-lab.png`
+- `public/previews/contract-lab-interact.png`
+
+## License
+
+MIT

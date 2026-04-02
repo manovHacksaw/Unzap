@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 const navLinks = ["STUDIO", "SOLUTIONS", "DEVELOPERS", "RESOURCES"];
 
@@ -31,13 +32,25 @@ export default function Navbar() {
             initial="initial"
             animate="animate"
         >
-            <motion.span
+            <motion.div
                 variants={itemVariants}
-                className="text-white font-bold tracking-[0.25em] text-base uppercase"
-                style={{ letterSpacing: "0.22em" }}
+                className="flex items-center gap-2.5"
             >
-                Unzap
-            </motion.span>
+                <Image
+                    src="/brand/unzap-logo.png"
+                    alt="Unzap logo"
+                    width={38}
+                    height={38}
+                    priority
+                    className="h-9 w-9 shrink-0 object-contain"
+                />
+                <span
+                    className="text-white font-bold tracking-[0.25em] text-base uppercase"
+                    style={{ letterSpacing: "0.22em" }}
+                >
+                    Unzap
+                </span>
+            </motion.div>
 
             <nav className="flex flex-col items-end gap-1">
                 {navLinks.map((link) => (
