@@ -437,45 +437,53 @@ export function DeployPanel({
       </div>
 
       {/* ── Constructor Inputs ───────────────────────────────────────── */}
-      {deployStatus === "declared" && ctorInputs.length > 0 && (
-        <div className="px-5 py-5 space-y-3 border-b border-neutral-800">
-          <SectionLabel>Constructor</SectionLabel>
-          {ctorInputs.map((inp) => (
-            <div key={inp.name}>
-              <label className="text-[9px] font-mono text-neutral-600">
-                {inp.name}{" "}
-                <span className="text-neutral-700">{inp.type}</span>
-              </label>
+      {isBuilt && (ctorInputs.length > 0 || !isDeployed) && (
+        <div className="px-5 py-5 space-y-3 border-b border-neutral-800 bg-neutral-900/10">
+          <SectionLabel>Constructor & Salt</SectionLabel>
+          
+          {ctorInputs.length > 0 && (
+            <div className="space-y-4 mb-4">
+              {ctorInputs.map((inp) => (
+                <div key={inp.name}>
+                  <label className="text-[9px] font-mono text-neutral-600">
+                    {inp.name}{" "}
+                    <span className="text-neutral-700">{inp.type}</span>
+                  </label>
+                  <input
+                    value={constructorInputs[inp.name] ?? ""}
+                    onChange={(e) =>
+                      setConstructorInputs((prev) => ({ ...prev, [inp.name]: e.target.value }))
+                    }
+                    placeholder="0x… or decimal"
+                    className="w-full mt-1 bg-transparent border-b border-border/60 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/50 text-neutral-300 placeholder:text-neutral-800 transition-colors"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!isDeployed && (
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-[9px] font-mono text-neutral-600">
+                  salt <span className="text-neutral-700">felt252</span>
+                </label>
+                <button
+                  onClick={() => setSalt(Math.floor(Math.random() * 1_000_000).toString())}
+                  className="p-1 hover:text-amber-500 transition-colors text-neutral-700"
+                  title="Randomize salt"
+                >
+                  <RefreshCw className="w-2.5 h-2.5" />
+                </button>
+              </div>
               <input
-                value={constructorInputs[inp.name] ?? ""}
-                onChange={(e) =>
-                  setConstructorInputs((prev) => ({ ...prev, [inp.name]: e.target.value }))
-                }
-                placeholder="0x… or decimal"
+                value={salt}
+                onChange={(e) => setSalt(e.target.value)}
+                placeholder="0"
                 className="w-full mt-1 bg-transparent border-b border-border/60 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/50 text-neutral-300 placeholder:text-neutral-800 transition-colors"
               />
             </div>
-          ))}
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-[9px] font-mono text-neutral-600">
-                salt <span className="text-neutral-700">felt252</span>
-              </label>
-              <button
-                onClick={() => setSalt(Math.floor(Math.random() * 1_000_000).toString())}
-                className="p-1 hover:text-amber-500 transition-colors text-neutral-700"
-                title="Randomize salt"
-              >
-                <RefreshCw className="w-2.5 h-2.5" />
-              </button>
-            </div>
-            <input
-              value={salt}
-              onChange={(e) => setSalt(e.target.value)}
-              placeholder="0"
-              className="w-full mt-1 bg-transparent border-b border-border/60 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/50 text-neutral-300 placeholder:text-neutral-800 transition-colors"
-            />
-          </div>
+          )}
         </div>
       )}
 
@@ -551,9 +559,9 @@ export function DeployPanel({
                         </motion.p>
                       )}
                       
-                      {step.status === "error" && (
+                      {step.status === "error" && !step.detail && (
                         <p className="text-[9px] font-medium text-red-500/80 leading-relaxed mt-1">
-                          Hardware processing failed. Verify class state.
+                          Step failed. Check the terminal for details.
                         </p>
                       )}
                     </div>

@@ -9,7 +9,7 @@ export const CONTRACT_LAB_WALLET_SESSION_KEY = "unzap:contract-lab:wallet-sessio
 export const CONTRACT_LAB_DRAFT_VERSION = 2;
 export const STRK_TOKEN = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 export const UDC_ADDRESS = "0x02ceed65a4bd731034c01113685c831b01c15d7d432f71afb1cf1634b53a2125";
-export const UDC_ENTRYPOINT = "deploy_contract";
+export const UDC_ENTRYPOINT = "deployContract";
 
 export const INITIAL_FILES = [
   {

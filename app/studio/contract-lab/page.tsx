@@ -32,7 +32,6 @@ import {
   XCircle,
   FileText,
   Terminal,
-
 } from "lucide-react";
 import { clsx } from "clsx";
 import { Button } from "@/components/ui/button";
@@ -85,6 +84,8 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { InteractPanel } from "./components/InteractPanel";
 import { DeployPanel } from "./components/DeployPanel";
 import { ToastViewport } from "./components/ToastViewport";
+import { TemplatesPanel } from "./components/TemplatesPanel";
+import { CONTRACT_TEMPLATES, type ContractTemplate } from "./templates";
 
 export default function StarkzapIDE() {
   // --- Privy Auth ---
@@ -332,13 +333,33 @@ export default function StarkzapIDE() {
     textareaRef.current.setSelectionRange(absoluteIndex, absoluteIndex);
   }, [currentSource]);
 
+  const getUniqueFilename = useCallback((name: string) => {
+    let base = name;
+    let ext = "";
+    const lastDot = name.lastIndexOf(".");
+    if (lastDot !== -1) {
+      base = name.slice(0, lastDot);
+      ext = name.slice(lastDot);
+    }
+    
+    let finalName = name;
+    let counter = 1;
+    
+    while (files.some(f => f.filename === finalName)) {
+      finalName = `${base} (${counter})${ext}`;
+      counter++;
+    }
+    return finalName;
+  }, [files]);
+
   const createFile = () => {
     const newId = `file-${Date.now()}`;
-    const newFile = { id: newId, filename: "untitled.cairo", source: "// New Cairo Contract\n" };
+    const name = getUniqueFilename("untitled.cairo");
+    const newFile = { id: newId, filename: name, source: "// New Cairo Contract\n" };
     setFiles([...files, newFile]);
     setActiveFileId(newId);
     setEditingFileId(newId);
-    setRenameValue("untitled.cairo");
+    setRenameValue(name);
   };
 
   const deleteFile = (e: React.MouseEvent, id: string) => {
@@ -466,10 +487,29 @@ export default function StarkzapIDE() {
     setTimeout(() => handleBuild(), 100);
   }, [activeSourceFile, addLog, handleBuild, pushToast]);
 
+  const handleLoadTemplate = useCallback((template: ContractTemplate) => {
+    const newId = `template-${template.id}-${Date.now()}`;
+    const uniqueName = getUniqueFilename(template.filename);
+    const newFile = {
+      id: newId,
+      filename: uniqueName,
+      source: template.sourceCode,
+    };
+    setFiles((prev) => [...prev, newFile]);
+    setActiveFileId(newId);
+    addLog(`[system] Loaded template: ${template.name}`);
+    pushToast({
+      tone: "success",
+      title: `Template loaded: ${template.name}`,
+      description: `New file "${uniqueName}" created from template.`,
+    });
+  }, [addLog, getUniqueFilename, pushToast]);
+
   const fetchStrkBalance = useCallback(async (address: string) => {
+    if (!sdkRef.current) return;
     setIsFetchingBalance(true);
     try {
-      const provider = sdkRef.current!.getProvider();
+      const provider = sdkRef.current.getProvider();
       const result = await provider.callContract({
         contractAddress: STRK_TOKEN,
         entrypoint: "balanceOf",
@@ -500,7 +540,9 @@ export default function StarkzapIDE() {
           entrypoint: "balanceOf",
           calldata: [address],
         });
-        const val = BigInt(res[0] ?? 0) + (BigInt(res[1] ?? 0) << 128n);
+        const low = BigInt(res[0] ?? 0);
+        const high = BigInt(res[1] ?? 0);
+        const val = low + (high << BigInt(128));
         return (Number(val) / 1e18).toFixed(4);
       } catch { return "0.0000"; }
     };
@@ -555,9 +597,11 @@ export default function StarkzapIDE() {
       setWalletType("privy");
       setShowAuthModal(false);
       persistWalletSession("privy", connectedWallet.address);
+      
       addLog(
         `${restore ? "Restored" : "Connected"} Privy wallet: ${connectedWallet.address.slice(0, 10)}...`
       );
+      
       if (!restore) {
         pushToast({
           tone: "success",
@@ -565,9 +609,14 @@ export default function StarkzapIDE() {
           description: "Gasless execution is ready in the studio.",
         });
       }
-      fetchStrkBalance(connectedWallet.address);
+      
+      // Isolate balance fetch so it doesn't crash the connection state
+      void fetchStrkBalance(connectedWallet.address);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Connection failed";
+      
+      const isTransientFetchError = restore && (message.includes("fetch") || message.includes("Load failed"));
+      
       if (!silent) {
         setWalletError(message);
         pushToast({
@@ -575,8 +624,9 @@ export default function StarkzapIDE() {
           title: "Privy connection failed",
           description: message,
         });
+      } else if (!isTransientFetchError) {
+        console.warn("Silent Privy restore failed:", message);
       }
-      else console.warn("Silent Privy restore failed:", message);
     } finally {
       setIsWalletConnecting(false);
     }
@@ -749,7 +799,7 @@ export default function StarkzapIDE() {
     setIsDeployingAccount(true);
     try {
       addLog("Deploying account on-chain...");
-      await szWallet.deploy();
+      await szWallet.deploy({ feeMode: "user_pays" });
       addLog("Account deployed successfully.");
       setShowDeployAccountPrompt(false);
       fetchStrkBalance(walletAddress);
@@ -771,13 +821,16 @@ export default function StarkzapIDE() {
   };
 
   // Polls every 5s; resolves when confirmed, rejects with "timeout" after `ms` ms
-  const waitForTx = useCallback(async (txHash: string, ms = 120_000) => {
+  // Mainnet blocks are slower — default to 5 min on mainnet, 2 min on Sepolia
+  const TX_TIMEOUT_MS = network === "mainnet" ? 300_000 : 120_000;
+  const TX_TIMEOUT_LABEL = network === "mainnet" ? "5 minutes" : "2 minutes";
+  const waitForTx = useCallback(async (txHash: string, ms = TX_TIMEOUT_MS) => {
     const account = starknetAccount as Account;
     return Promise.race([
       account.waitForTransaction(txHash, { retryInterval: 5000 }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
     ]);
-  }, [starknetAccount]);
+  }, [starknetAccount, TX_TIMEOUT_MS]);
 
   const handleDeclare = async () => {
     if (!starknetAccount) {
@@ -821,24 +874,67 @@ export default function StarkzapIDE() {
       addLog(`Using wallet: ${walletAddress.slice(0, 14)}...`);
       setDeployStep("check", "done");
       setDeployStep("sign", "active");
-      addLog("Sending declare transaction (sierra + casm)...");
+      addLog("Attempting gasless declaration via studio paymaster...");
+      
+      let declareResult: { transaction_hash: string; class_hash: string };
+      let isAlreadyDeclared = false;
 
-      const declareResult = await (starknetAccount as Account).declare({
-        contract: activeBuildData.sierra as CompiledSierra,
-        casm: activeBuildData.casm as CairoAssembly,
-      });
-      setDeployStep("sign", "done", `tx: ${declareResult.transaction_hash.slice(0, 10)}...`);
-      addLog(`Declare tx: ${declareResult.transaction_hash}`);
-      setDeployStep("broadcast", "active");
       try {
-        await waitForTx(declareResult.transaction_hash);
-      } catch (waitErr) {
-        if ((waitErr as Error).message === "timeout") {
-          throw new Error(`Transaction timed out after 2 minutes. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${declareResult.transaction_hash}`);
+        const res = await fetch("/api/declare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            sierra: activeBuildData.sierra, 
+            casm: activeBuildData.casm,
+            network: network 
+          }),
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          declareResult = {
+            transaction_hash: data.txHash || "",
+            class_hash: data.classHash
+          };
+          isAlreadyDeclared = !!data.alreadyDeclared;
+          if (isAlreadyDeclared) {
+            addLog("Class already declared on-chain (verified by studio).");
+          } else {
+            addLog(`Gasless declare tx: ${data.txHash}`);
+          }
+        } else {
+          throw new Error(data.error || "Server declare failed");
         }
-        throw waitErr;
+      } catch (apiErr) {
+        addLog(`Gasless declare unavailable: ${apiErr instanceof Error ? apiErr.message : "Internal error"}. Falling back to local wallet...`);
+        const localResult = await (starknetAccount as Account).declare({
+          contract: activeBuildData.sierra as CompiledSierra,
+          casm: activeBuildData.casm as CairoAssembly,
+        });
+        declareResult = {
+          transaction_hash: localResult.transaction_hash,
+          class_hash: localResult.class_hash
+        };
       }
-      setDeployStep("broadcast", "done");
+
+      setDeployStep("sign", "done", `tx: ${declareResult.transaction_hash.slice(0, 10) || "none"}...`);
+      
+      if (!isAlreadyDeclared && declareResult.transaction_hash) {
+        setDeployStep("broadcast", "active");
+        try {
+          await waitForTx(declareResult.transaction_hash);
+        } catch (waitErr) {
+          if ((waitErr as Error).message === "timeout") {
+            throw new Error(`Transaction timed out after ${TX_TIMEOUT_LABEL}. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${declareResult.transaction_hash}`);
+          }
+          throw waitErr;
+        }
+        setDeployStep("broadcast", "done");
+      } else if (isAlreadyDeclared) {
+        setDeployStep("broadcast", "done", "skipped (already declared)");
+      } else {
+        setDeployStep("broadcast", "done", "skipped (no tx)");
+      }
       const cHash = declareResult.class_hash;
       setDeployStep("confirm", "active");
       setClassHash(cHash);
@@ -873,11 +969,11 @@ export default function StarkzapIDE() {
       setDeploySteps((prev) => prev.map((s) => s.status === "active" ? { ...s, status: "error", detail: msg.slice(0, 60) } : s));
       setDeployStatus("idle");
       addLog(`Declare failed: ${msg}`);
-      if (msg.includes("timed out after 2 minutes")) {
+      if (msg.includes("Transaction timed out after")) {
         pushToast({
           tone: "error",
           title: "Declare timed out",
-          description: "No confirmation after 2 min. The paymaster may be out of gas or the network is congested. Check the terminal for the tx link.",
+          description: `No confirmation after ${TX_TIMEOUT_LABEL}. The paymaster may be out of gas or the network is congested. Check the terminal for the tx link.`,
         });
       } else {
         pushToast({
@@ -897,7 +993,24 @@ export default function StarkzapIDE() {
 
     const constructorAbi = activeBuildData?.abi?.find((entry: { type: string; name: string }) => entry.type === "constructor");
     const constructorParams: Array<{ name: string; type: string }> = constructorAbi?.inputs ?? [];
-    const calldata = constructorParams.map((p: { name: string; type: string }) => constructorInputs[p.name] ?? "0");
+    
+    const calldata = constructorParams.flatMap((p: { name: string; type: string }) => {
+      const val = constructorInputs[p.name] ?? "0";
+      const type = p.type.toLowerCase();
+      // u256 needs two felts (low, high)
+      if (type.includes("u256")) {
+        try {
+          const bn = BigInt(val);
+          const low = bn & ((BigInt(1) << BigInt(128)) - BigInt(1));
+          const high = bn >> BigInt(128);
+          return [low.toString(), high.toString()];
+        } catch {
+          return ["0", "0"];
+        }
+      }
+      return [val];
+    });
+    
     const effectiveSalt = newSalt;
     const predictedAddress = hash.calculateContractAddressFromHash(
       hash.computePedersenHash(walletAddress, effectiveSalt),
@@ -957,11 +1070,11 @@ export default function StarkzapIDE() {
         try {
           await Promise.race([
             tx.wait(),
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 120_000)),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), TX_TIMEOUT_MS)),
           ]);
         } catch (waitErr) {
           if ((waitErr as Error).message === "timeout") {
-            throw new Error(`Transaction timed out after 2 minutes. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${tx.hash}`);
+            throw new Error(`Transaction timed out after ${TX_TIMEOUT_LABEL}. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${tx.hash}`);
           }
           throw waitErr;
         }
@@ -981,7 +1094,7 @@ export default function StarkzapIDE() {
           await waitForTx(deployResult.transaction_hash);
         } catch (waitErr) {
           if ((waitErr as Error).message === "timeout") {
-            throw new Error(`Transaction timed out after 2 minutes. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${deployResult.transaction_hash}`);
+            throw new Error(`Transaction timed out after ${TX_TIMEOUT_LABEL}. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${deployResult.transaction_hash}`);
           }
           throw waitErr;
         }
@@ -1015,12 +1128,12 @@ export default function StarkzapIDE() {
       const msg = e instanceof Error ? e.message : String(e);
       setDeploySteps((prev) => prev.map((s) => s.status === "active" ? { ...s, status: "error", detail: msg.slice(0, 60) } : s));
       setDeployStatus("declared");
-      if (msg.includes("timed out after 2 minutes")) {
+      if (msg.includes("Transaction timed out after")) {
         addLog(`Deploy failed: ${msg}`);
         pushToast({
           tone: "error",
           title: "Deploy timed out",
-          description: "No confirmation after 2 min. The paymaster may be out of gas or the network is congested. Check the terminal for the tx link.",
+          description: `No confirmation after ${TX_TIMEOUT_LABEL}. The paymaster may be out of gas or the network is congested. Check the terminal for the tx link.`,
         });
       } else if (msg.includes("contract already deployed") || msg.includes("already deployed") || msg.includes("already exists")) {
         addLog(`Deploy failed: Address collision. Change the salt and try again.`);
@@ -1420,6 +1533,25 @@ export default function StarkzapIDE() {
                         )}
                       </div>
                     ))}
+
+                    <div className="mt-4">
+                      <div className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase text-neutral-500 mb-1 group cursor-pointer hover:bg-white/[0.02]">
+                        <ChevronDown className="w-3 h-3" />
+                        starter templates
+                      </div>
+                      <div className="space-y-0.5">
+                        {CONTRACT_TEMPLATES.map((t) => (
+                          <div
+                            key={t.id}
+                            onClick={() => handleLoadTemplate(t)}
+                            className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300"
+                          >
+                            <FileCode className={clsx("w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50")} />
+                            <span className="truncate text-neutral-400 group-hover:text-neutral-200 transition-colors font-medium">{t.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                     <div className="mt-4">
                       <div className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase text-neutral-500 mb-1 group cursor-pointer hover:bg-white/[0.02]">
                         <ChevronDown className="w-3 h-3" />
@@ -2022,6 +2154,7 @@ export default function StarkzapIDE() {
         isOpen={showDeployAccountPrompt}
         onClose={() => setShowDeployAccountPrompt(false)}
         networkLabel={netConfig.label}
+        walletAddress={walletAddress}
         isDeployingAccount={isDeployingAccount}
         onDeployAccount={handleDeployAccount}
       />
