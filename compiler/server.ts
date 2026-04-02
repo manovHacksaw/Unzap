@@ -152,16 +152,23 @@ async function scarbVersion(): Promise<string> {
 
 function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin");
-  const allowedVar = process.env.ALLOWED_ORIGIN ?? "*";
+  const allowedVar = process.env.ALLOWED_ORIGIN || "";
   
-  // If set to "*", just reflect back or keep as "*"
-  if (allowedVar === "*") return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
+  // High-priority: explicitly allow these
+  const internalAllowed = ["https://unzap.xyz", "https://unzap.vercel.app", "http://localhost:3000"];
+  
+  if (!allowedVar || allowedVar === "*") {
+    // If no config, reflect origin if it matches our list, otherwise *
+    const allowed = (origin && internalAllowed.includes(origin)) ? origin : "*";
+    return {
+      "Access-Control-Allow-Origin": allowed,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Vary": "Origin"
+    };
+  }
 
-  const allowedOrigins = allowedVar.split(",").map(o => o.trim());
+  const allowedOrigins = allowedVar.split(",").map(o => o.trim()).concat(internalAllowed);
   const allowed = (origin && allowedOrigins.includes(origin)) ? origin : allowedOrigins[0];
 
   return {

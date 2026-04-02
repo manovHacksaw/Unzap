@@ -20,9 +20,16 @@ export async function GET(req: Request) {
         });
 
         return NextResponse.json({ deployments, transactions });
-    } catch (error) {
-        console.error("GET History failed:", error);
-        return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    } catch (error: any) {
+        console.error("GET History failed:", {
+          message: error.message,
+          code: error.code,
+          stack: error.stack?.split("\n")[0]
+        });
+        return NextResponse.json({ 
+          error: "Internal error", 
+          details: process.env.NODE_ENV === "development" ? error.message : undefined 
+        }, { status: 500 });
     }
 }
 

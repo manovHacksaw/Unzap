@@ -19,12 +19,11 @@ const features: BentoItem[] = [
     className: "md:col-span-2 lg:col-span-2 lg:row-span-2 min-h-[400px]",
   },
   {
-    title: "Playground",
-    description: "Live execution environment for Starknet. Test and experiment with smart contracts in real-time without any setup.",
-    href: "/studio/playground",
+    title: "DeFi Hub",
+    description: "The Starknet liquidity engine. Swap tokens, stake STRK, and bridge Bitcoin natively via StarkZap V2.",
+    href: "/studio/defi",
     className: "min-h-[250px]",
-    comingSoon: true,
-    status: "Half Baked",
+    status: "Live",
   },
   {
     title: "Guided Mode",
