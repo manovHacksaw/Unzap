@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   title: "Unzap — Starkzap Dev Studio",
   description:
     "Learn Starknet + Starkzap by doing. Guided flows, live execution, and real-time visualization that removes the black box.",
+  manifest: "/favicon/site.webmanifest",
 };
 
 export default function RootLayout({
