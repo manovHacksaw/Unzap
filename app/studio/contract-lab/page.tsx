@@ -6,7 +6,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { StarkZap, OnboardStrategy, accountPresets } from "starkzap";
 import { useNetwork } from "@/lib/NetworkContext";
 import { getNetworkConfig } from "@/lib/network-config";
-import { WalletAccount, Account, hash, type CairoAssembly, type CompiledSierra, type ProviderInterface } from "starknet";
+import { WalletAccount, Account, hash, RpcProvider, type CairoAssembly, type CompiledSierra, type ProviderInterface } from "starknet";
 import {
   Files,
   Settings,
@@ -79,6 +79,7 @@ import { PanelHeader } from "./components/PanelHeader";
 import { DiagnosticCard } from "./components/DiagnosticCard";
 import { HistoryDeploymentCard } from "./components/HistoryDeploymentCard";
 import { AuthModal } from "./components/AuthModal";
+import { AccountModal } from "./components/AccountModal";
 import { DeployAccountPrompt } from "./components/DeployAccountPrompt";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { InteractPanel } from "./components/InteractPanel";
@@ -141,8 +142,11 @@ export default function StarkzapIDE() {
   const [walletType, setWalletType] = useState<"privy" | "extension" | null>(null);
   const [isWalletConnecting, setIsWalletConnecting] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
   const [strkBalance, setStrkBalance] = useState<string | null>(null);
+  const [mainnetBalance, setMainnetBalance] = useState<string | null>(null);
+  const [sepoliaBalance, setSepoliaBalance] = useState<string | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
   const [constructorInputs, setConstructorInputs] = useState<Record<string, string>>({});
   const [deploySteps, setDeploySteps] = useState<DeployStep[]>([]);
@@ -482,6 +486,32 @@ export default function StarkzapIDE() {
     }
   }, []);
 
+  const fetchDualBalances = useCallback(async (address: string) => {
+    const mainnetCfg = getNetworkConfig("mainnet");
+    const sepoliaCfg = getNetworkConfig("sepolia");
+    
+    const mainProvider = new RpcProvider({ nodeUrl: mainnetCfg.rpcUrl });
+    const sepProvider = new RpcProvider({ nodeUrl: sepoliaCfg.rpcUrl });
+
+    const fetchBal = async (prov: RpcProvider) => {
+      try {
+        const res = await prov.callContract({
+          contractAddress: STRK_TOKEN,
+          entrypoint: "balanceOf",
+          calldata: [address],
+        });
+        const val = BigInt(res[0] ?? 0) + (BigInt(res[1] ?? 0) << 128n);
+        return (Number(val) / 1e18).toFixed(4);
+      } catch { return "0.0000"; }
+    };
+
+    const [main, sep] = await Promise.all([fetchBal(mainProvider), fetchBal(sepProvider)]);
+    setMainnetBalance(main);
+    setSepoliaBalance(sep);
+    // sync current balance too
+    setStrkBalance(network === "mainnet" ? main : sep);
+  }, [network]);
+
   type WalletConnectOptions = {
     silent?: boolean;
     restore?: boolean;
@@ -740,6 +770,15 @@ export default function StarkzapIDE() {
     }
   };
 
+  // Polls every 5s; resolves when confirmed, rejects with "timeout" after `ms` ms
+  const waitForTx = useCallback(async (txHash: string, ms = 120_000) => {
+    const account = starknetAccount as Account;
+    return Promise.race([
+      account.waitForTransaction(txHash, { retryInterval: 5000 }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+    ]);
+  }, [starknetAccount]);
+
   const handleDeclare = async () => {
     if (!starknetAccount) {
       setShowAuthModal(true);
@@ -791,7 +830,14 @@ export default function StarkzapIDE() {
       setDeployStep("sign", "done", `tx: ${declareResult.transaction_hash.slice(0, 10)}...`);
       addLog(`Declare tx: ${declareResult.transaction_hash}`);
       setDeployStep("broadcast", "active");
-      await (starknetAccount as Account).waitForTransaction(declareResult.transaction_hash);
+      try {
+        await waitForTx(declareResult.transaction_hash);
+      } catch (waitErr) {
+        if ((waitErr as Error).message === "timeout") {
+          throw new Error(`Transaction timed out after 2 minutes. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${declareResult.transaction_hash}`);
+        }
+        throw waitErr;
+      }
       setDeployStep("broadcast", "done");
       const cHash = declareResult.class_hash;
       setDeployStep("confirm", "active");
@@ -799,7 +845,7 @@ export default function StarkzapIDE() {
       setDeployStep("confirm", "done", `class hash: ${cHash.slice(0, 10)}...`);
       setDeployStatus("declared");
       addLog(`Declare success! Class Hash: ${cHash}`);
-      addLog(`Explorer: ${netConfig.voyager}/class/${cHash}`);
+      addLog(`Explorer: ${netConfig.explorer}/class/${cHash}`);
       logTransaction({ hash: declareResult.transaction_hash, type: "declare", status: "success" });
       pushToast({
         tone: "success",
@@ -827,11 +873,19 @@ export default function StarkzapIDE() {
       setDeploySteps((prev) => prev.map((s) => s.status === "active" ? { ...s, status: "error", detail: msg.slice(0, 60) } : s));
       setDeployStatus("idle");
       addLog(`Declare failed: ${msg}`);
-      pushToast({
-        tone: "error",
-        title: "Declare failed",
-        description: msg.slice(0, 140),
-      });
+      if (msg.includes("timed out after 2 minutes")) {
+        pushToast({
+          tone: "error",
+          title: "Declare timed out",
+          description: "No confirmation after 2 min. The paymaster may be out of gas or the network is congested. Check the terminal for the tx link.",
+        });
+      } else {
+        pushToast({
+          tone: "error",
+          title: "Declare failed",
+          description: msg.slice(0, 140),
+        });
+      }
     }
   };
 
@@ -900,7 +954,17 @@ export default function StarkzapIDE() {
         setDeployStep("sign", "done", `tx: ${tx.hash.slice(0, 10)}...`);
         addLog(`Deploy tx (gasless): ${tx.hash}`);
         setDeployStep("broadcast", "active");
-        await tx.wait();
+        try {
+          await Promise.race([
+            tx.wait(),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 120_000)),
+          ]);
+        } catch (waitErr) {
+          if ((waitErr as Error).message === "timeout") {
+            throw new Error(`Transaction timed out after 2 minutes. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${tx.hash}`);
+          }
+          throw waitErr;
+        }
         setDeployStep("broadcast", "done");
       } else {
         const deployResult = await (starknetAccount as Account).deployContract({
@@ -913,7 +977,14 @@ export default function StarkzapIDE() {
         setDeployStep("sign", "done", `tx: ${deployResult.transaction_hash.slice(0, 10)}...`);
         addLog(`Deploy tx: ${deployResult.transaction_hash}`);
         setDeployStep("broadcast", "active");
-        await (starknetAccount as Account).waitForTransaction(deployResult.transaction_hash);
+        try {
+          await waitForTx(deployResult.transaction_hash);
+        } catch (waitErr) {
+          if ((waitErr as Error).message === "timeout") {
+            throw new Error(`Transaction timed out after 2 minutes. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${deployResult.transaction_hash}`);
+          }
+          throw waitErr;
+        }
         setDeployStep("broadcast", "done");
       }
 
@@ -922,7 +993,7 @@ export default function StarkzapIDE() {
       setDeployStep("confirm", "done", `address: ${predictedAddress.slice(0, 10)}...`);
       setDeployStatus("deployed");
       addLog(`Deploy success! Contract: ${predictedAddress}`);
-      addLog(`View on explorer: ${netConfig.voyager}/contract/${predictedAddress}`);
+      addLog(`View on explorer: ${netConfig.explorer}/contract/${predictedAddress}`);
       setActiveSidebarTab("interact");
       setIsSidebarOpen(true);
       setActiveInteractFn(null);
@@ -944,7 +1015,14 @@ export default function StarkzapIDE() {
       const msg = e instanceof Error ? e.message : String(e);
       setDeploySteps((prev) => prev.map((s) => s.status === "active" ? { ...s, status: "error", detail: msg.slice(0, 60) } : s));
       setDeployStatus("declared");
-      if (msg.includes("contract already deployed") || msg.includes("already deployed") || msg.includes("already exists")) {
+      if (msg.includes("timed out after 2 minutes")) {
+        addLog(`Deploy failed: ${msg}`);
+        pushToast({
+          tone: "error",
+          title: "Deploy timed out",
+          description: "No confirmation after 2 min. The paymaster may be out of gas or the network is congested. Check the terminal for the tx link.",
+        });
+      } else if (msg.includes("contract already deployed") || msg.includes("already deployed") || msg.includes("already exists")) {
         addLog(`Deploy failed: Address collision. Change the salt and try again.`);
         pushToast({
           tone: "warning",
@@ -1155,7 +1233,7 @@ export default function StarkzapIDE() {
         {parts.map((part, index) => {
           if (part.startsWith("0x")) {
             const isAddr = part.length <= 44;
-            const link = isAddr ? `${netConfig.voyager}/contract/${part}` : `${netConfig.voyager}/tx/${part}`;
+            const link = isAddr ? `${netConfig.explorer}/contract/${part}` : `${netConfig.explorer}/tx/${part}`;
             return <a key={index} href={link} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 font-mono underline decoration-amber-400/20 underline-offset-2 transition-colors cursor-pointer">{part}</a>;
           } else if (part.startsWith("http")) {
             return <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 underline decoration-sky-400/30 underline-offset-2 transition-colors cursor-pointer">{part}</a>;
@@ -1494,7 +1572,7 @@ export default function StarkzapIDE() {
                               </div>
                               <div className="text-[9px] font-mono text-neutral-600 truncate mb-1.5">{tx.hash}</div>
                               <div className="flex justify-end gap-2">
-                                <a href={`${netConfig.voyager}/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="text-[9px] text-neutral-700 hover:text-amber-500 transition-colors">View ↗</a>
+                                <a href={`${netConfig.explorer}/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="text-[9px] text-neutral-700 hover:text-amber-500 transition-colors">View ↗</a>
                               </div>
                             </div>
                           ))}
@@ -1872,7 +1950,6 @@ export default function StarkzapIDE() {
         </AnimatePresence>
       </div>
 
-      {/* ── AUTH MODAL ── */}
       <AnimatePresence>
         {showAuthModal && (
           <>
@@ -1886,6 +1963,24 @@ export default function StarkzapIDE() {
                 onExtensionConnect={connectExtensionWallet}
                 onClose={() => { setShowAuthModal(false); setWalletError(null); }}
                 networkLabel={netConfig.label}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAccountModal && walletAddress && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAccountModal(false)} className="fixed inset-0 bg-black/70 backdrop-blur-[3px] z-[90]" />
+            <motion.div initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.97 }} className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-full max-w-md">
+              <AccountModal
+                address={walletAddress}
+                walletType={walletType === "privy" ? "privy" : "extension"}
+                mainnetBalance={mainnetBalance}
+                sepoliaBalance={sepoliaBalance}
+                onDisconnect={() => { disconnectWallet(); setShowAccountModal(false); }}
+                onClose={() => setShowAccountModal(false)}
               />
             </motion.div>
           </>
@@ -1928,7 +2023,7 @@ export default function StarkzapIDE() {
           </div>
           <div className="w-px h-3 bg-neutral-800/50" />
           {walletType ? (
-            <button onClick={() => setShowAuthModal(true)} className={clsx("flex items-center gap-1.5 font-bold hover:opacity-80 transition-opacity", walletType === "privy" ? "text-amber-400/90" : "text-sky-400/90")}>
+            <button onClick={() => { setShowAccountModal(true); fetchDualBalances(walletAddress); }} className={clsx("flex items-center gap-1.5 font-bold hover:opacity-80 transition-opacity", walletType === "privy" ? "text-amber-400/90" : "text-sky-400/90")}>
               <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
               <span>{walletType === "privy" ? "Privy" : "Extension"} · {walletAddress.slice(0, 8)}...</span>
             </button>
