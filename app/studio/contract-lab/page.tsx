@@ -26,7 +26,6 @@ import {
   Loader2,
   TestTube,
   RefreshCw,
-  X,
   Edit2,
   FilePlus,
   FolderPlus,
@@ -40,12 +39,12 @@ import { clsx } from "clsx";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import {
   COMPILER_URL,
   CONTRACT_LAB_DRAFT_KEY,
   CONTRACT_LAB_SETTINGS_KEY,
+  CONTRACT_LAB_WALLET_SESSION_KEY,
   CONTRACT_LAB_DRAFT_VERSION,
   STRK_TOKEN,
   UDC_ADDRESS,
@@ -71,11 +70,11 @@ import {
   type DeployStatus,
   type ContractLabDraft,
 } from "./types";
-import { highlightCairo, getLiveDiagnostics, getSearchMatches, formatProblemsForCopy } from "./utils";
+import { formatProblemsForCopy, getLiveDiagnostics, getSearchMatches, highlightCairo, normalizeAbiEntries } from "./utils";
 import { CopyButton } from "./components/CopyButton";
 import { ActivityIcon } from "./components/ActivityIcon";
 import { ContextMenuButton } from "./components/ContextMenuButton";
-import { PanelHeader, TabButton } from "./components/PanelHeader";
+import { PanelHeader } from "./components/PanelHeader";
 import { DiagnosticCard } from "./components/DiagnosticCard";
 import { HistoryDeploymentCard } from "./components/HistoryDeploymentCard";
 import { AuthModal } from "./components/AuthModal";
@@ -86,7 +85,7 @@ import { DeployPanel } from "./components/DeployPanel";
 
 export default function StarkzapIDE() {
   // --- Privy Auth ---
-  const { authenticated, getAccessToken, login, logout } = usePrivy();
+  const { ready: privyReady, authenticated, getAccessToken, login, logout } = usePrivy();
 
   // --- Network ---
   const { network, setNetwork } = useNetwork();
@@ -114,7 +113,7 @@ export default function StarkzapIDE() {
         } catch { /* ignore bad cache */ }
       }
 
-      if (authenticated) {
+      if (privyReady && authenticated) {
         try {
           const token = await getAccessToken();
           const res = await fetch("/api/history", {
@@ -131,7 +130,7 @@ export default function StarkzapIDE() {
       }
     };
     loadHistory();
-  }, [authenticated, getAccessToken]);
+  }, [authenticated, getAccessToken, privyReady]);
 
   // --- Wallet state ---
   const [szWallet, setSzWallet] = useState<SzWalletType | null>(null);
@@ -191,6 +190,7 @@ export default function StarkzapIDE() {
   const centerPaneRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
   const draftHydratedRef = useRef(false);
+  const walletReconnectAttemptRef = useRef<string | null>(null);
 
   const sourceFiles = useMemo<ExplorerEntry[]>(
     () => files.map((file) => ({ ...file, kind: "source" as const })),
@@ -231,6 +231,49 @@ export default function StarkzapIDE() {
     if (!output) return;
     const normalized = output.replace(/\n\n+/g, "\n").trim();
     setCompilerOutput(normalized);
+  }, []);
+
+  const persistWalletSession = useCallback((type: "privy" | "extension", address: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        CONTRACT_LAB_WALLET_SESSION_KEY,
+        JSON.stringify({
+          type,
+          address,
+          updatedAt: Date.now(),
+        })
+      );
+    } catch {
+      // Ignore storage write failures so wallet connection still succeeds.
+    }
+  }, []);
+
+  const clearWalletSession = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.removeItem(CONTRACT_LAB_WALLET_SESSION_KEY);
+    } catch {
+      // Ignore storage cleanup failures.
+    }
+  }, []);
+
+  const getStoredWalletSession = useCallback((): { type: "privy" | "extension"; address?: string } | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem(CONTRACT_LAB_WALLET_SESSION_KEY);
+      if (!raw) return null;
+
+      const parsed = JSON.parse(raw) as { type?: unknown; address?: unknown };
+      if (parsed.type !== "privy" && parsed.type !== "extension") return null;
+
+      return {
+        type: parsed.type,
+        address: typeof parsed.address === "string" ? parsed.address : undefined,
+      };
+    } catch {
+      return null;
+    }
   }, []);
 
   const codeSearchMatches = useMemo(() => getSearchMatches(currentSource, codeSearchQuery), [codeSearchQuery, currentSource]);
@@ -373,66 +416,7 @@ export default function StarkzapIDE() {
     setTimeout(() => handleBuild(), 100);
   }, [activeSourceFile, addLog, handleBuild]);
 
-  // --- Wallet connection helpers ---
-  const connectPrivyWallet = async () => {
-    if (!authenticated) { login(); return; }
-    setIsWalletConnecting(true);
-    setWalletError(null);
-    try {
-      const accessToken = await getAccessToken();
-      const { wallet: szWallet } = await sdkRef.current!.onboard({
-        strategy: OnboardStrategy.Privy,
-        privy: {
-          resolve: async () => {
-            const res = await fetch("/api/signer-context", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error((data as { error?: string }).error ?? "Signer context failed");
-            return data;
-          },
-        },
-        accountPreset: accountPresets.argentXV050,
-        feeMode: "user_pays",
-        deploy: "never",
-      });
-      setSzWallet(szWallet);
-      setStarknetAccount(szWallet.getAccount() as unknown as Account);
-      setWalletAddress(szWallet.address);
-      setWalletType("privy");
-      setShowAuthModal(false);
-      addLog(`Privy wallet connected: ${szWallet.address.slice(0, 10)}...`);
-      fetchStrkBalance(szWallet.address);
-    } catch (e) {
-      setWalletError(e instanceof Error ? e.message : "Connection failed");
-    } finally {
-      setIsWalletConnecting(false);
-    }
-  };
-
-  const connectExtensionWallet = async () => {
-    setIsWalletConnecting(true);
-    setWalletError(null);
-    try {
-      const swo = (window as unknown as { starknet?: { id?: string; name?: string; request: (args: { type: string; params?: unknown }) => Promise<string[]> } }).starknet;
-      if (!swo) throw new Error("No Starknet browser extension found. Install ArgentX or Braavos.");
-      const provider = sdkRef.current!.getProvider();
-      const walletAccount = await WalletAccount.connect(provider, swo as Parameters<typeof WalletAccount.connect>[1]);
-      setStarknetAccount(walletAccount);
-      setWalletAddress(walletAccount.address);
-      setWalletType("extension");
-      setShowAuthModal(false);
-      addLog(`Extension wallet connected: ${walletAccount.address.slice(0, 10)}...`);
-      fetchStrkBalance(walletAccount.address);
-    } catch (e) {
-      setWalletError(e instanceof Error ? e.message : "Extension connection failed");
-    } finally {
-      setIsWalletConnecting(false);
-    }
-  };
-
-  const fetchStrkBalance = async (address: string) => {
+  const fetchStrkBalance = useCallback(async (address: string) => {
     setIsFetchingBalance(true);
     try {
       const provider = sdkRef.current!.getProvider();
@@ -450,10 +434,137 @@ export default function StarkzapIDE() {
     } finally {
       setIsFetchingBalance(false);
     }
+  }, []);
+
+  type WalletConnectOptions = {
+    silent?: boolean;
+    restore?: boolean;
   };
+
+  // --- Wallet connection helpers ---
+  const connectPrivyWallet = useCallback(async ({ silent = false, restore = false }: WalletConnectOptions = {}) => {
+    if (!privyReady) return;
+    if (!authenticated) {
+      if (!silent) login();
+      return;
+    }
+    if (!sdkRef.current) return;
+
+    setIsWalletConnecting(true);
+    if (!silent) setWalletError(null);
+
+    try {
+      const accessToken = await getAccessToken();
+      const { wallet: connectedWallet } = await sdkRef.current.onboard({
+        strategy: OnboardStrategy.Privy,
+        privy: {
+          resolve: async () => {
+            const res = await fetch("/api/signer-context", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error((data as { error?: string }).error ?? "Signer context failed");
+            return data;
+          },
+        },
+        accountPreset: accountPresets.argentXV050,
+        feeMode: "user_pays",
+        deploy: "never",
+      });
+
+      setSzWallet(connectedWallet);
+      setStarknetAccount(connectedWallet.getAccount() as unknown as Account);
+      setWalletAddress(connectedWallet.address);
+      setWalletType("privy");
+      setShowAuthModal(false);
+      persistWalletSession("privy", connectedWallet.address);
+      addLog(
+        `${restore ? "Restored" : "Connected"} Privy wallet: ${connectedWallet.address.slice(0, 10)}...`
+      );
+      fetchStrkBalance(connectedWallet.address);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Connection failed";
+      if (!silent) setWalletError(message);
+      else console.warn("Silent Privy restore failed:", message);
+    } finally {
+      setIsWalletConnecting(false);
+    }
+  }, [addLog, authenticated, fetchStrkBalance, getAccessToken, login, persistWalletSession, privyReady]);
+
+  const connectExtensionWallet = useCallback(async ({ silent = false, restore = false }: WalletConnectOptions = {}) => {
+    if (!sdkRef.current) return;
+
+    setIsWalletConnecting(true);
+    if (!silent) setWalletError(null);
+
+    try {
+      const swo = (window as unknown as { starknet?: { id?: string; name?: string; request: (args: { type: string; params?: unknown }) => Promise<string[]> } }).starknet;
+      if (!swo) throw new Error("No Starknet browser extension found. Install ArgentX or Braavos.");
+
+      const provider = sdkRef.current.getProvider();
+      const walletAccount = await WalletAccount.connect(provider, swo as Parameters<typeof WalletAccount.connect>[1]);
+      setStarknetAccount(walletAccount);
+      setWalletAddress(walletAccount.address);
+      setWalletType("extension");
+      setShowAuthModal(false);
+      persistWalletSession("extension", walletAccount.address);
+      addLog(
+        `${restore ? "Restored" : "Connected"} extension wallet: ${walletAccount.address.slice(0, 10)}...`
+      );
+      fetchStrkBalance(walletAccount.address);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Extension connection failed";
+      if (!silent) setWalletError(message);
+      else console.warn("Silent extension restore failed:", message);
+    } finally {
+      setIsWalletConnecting(false);
+    }
+  }, [addLog, fetchStrkBalance, persistWalletSession]);
+
+  useEffect(() => {
+    if (!privyReady || !sdkRef.current || starknetAccount || isWalletConnecting) return;
+
+    const session = getStoredWalletSession();
+    if (!session) return;
+    if (session.type === "privy" && !authenticated) return;
+
+    const attemptKey = `${session.type}:${network}:${authenticated}`;
+    if (walletReconnectAttemptRef.current === attemptKey) return;
+    walletReconnectAttemptRef.current = attemptKey;
+
+    if (session.type === "privy") {
+      void connectPrivyWallet({ silent: true, restore: true });
+      return;
+    }
+
+    void connectExtensionWallet({ silent: true, restore: true });
+  }, [
+    authenticated,
+    connectExtensionWallet,
+    connectPrivyWallet,
+    getStoredWalletSession,
+    isWalletConnecting,
+    network,
+    privyReady,
+    starknetAccount,
+  ]);
+
+  useEffect(() => {
+    if (!privyReady || authenticated || walletType !== "privy") return;
+
+    clearWalletSession();
+    setSzWallet(null);
+    setStarknetAccount(null);
+    setWalletAddress("");
+    setWalletType(null);
+    setStrkBalance(null);
+  }, [authenticated, clearWalletSession, privyReady, walletType]);
 
   const disconnectWallet = () => {
     if (walletType === "privy") logout();
+    clearWalletSession();
+    walletReconnectAttemptRef.current = null;
     setSzWallet(null);
     setStarknetAccount(null);
     setWalletAddress("");
@@ -691,7 +802,13 @@ export default function StarkzapIDE() {
       setIsSidebarOpen(true);
       setActiveInteractFn(null);
 
-      logDeployment({ contractAddress: predictedAddress, classHash, abi: activeBuildData?.abi || [], name: activeFile?.filename || "Unknown" });
+      logDeployment({
+        contractAddress: predictedAddress,
+        classHash,
+        abi: activeBuildData?.abi || [],
+        name: activeFile?.filename || "Unknown",
+        network,
+      });
       logTransaction({ hash: txHash, type: "deploy", status: "success" });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -1041,7 +1158,17 @@ export default function StarkzapIDE() {
                     {history.deployments.map((d: ContractHistoryItem) => (
                       <div
                         key={d.id}
-                        onClick={() => { setContractAddress(d.contractAddress); }}
+                        onClick={() => {
+                          const restoredAbi = normalizeAbiEntries(d.abi);
+                          setContractAddress(d.contractAddress);
+                          setClassHash(d.classHash);
+                          setDeployStatus("deployed");
+                          setDeploySteps([]);
+                          setConstructorInputs({});
+                          addLog(
+                            `[history] Loaded ${d.contractAddress.slice(0, 10)}... with ${restoredAbi.length || 0} ABI entr${restoredAbi.length === 1 ? "y" : "ies"}.`
+                          );
+                        }}
                         className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300"
                       >
                         <Box className="w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50" />
@@ -1109,9 +1236,17 @@ export default function StarkzapIDE() {
                               key={d.id}
                               deployment={d}
                               onInteract={() => {
+                                const restoredAbi = normalizeAbiEntries(d.abi);
                                 setContractAddress(d.contractAddress);
+                                setClassHash(d.classHash);
                                 setDeployStatus("deployed");
-                                addLog(`[history] Restored contract: ${d.contractAddress.slice(0, 10)}...`);
+                                setDeploySteps([]);
+                                setConstructorInputs({});
+                                setActiveSidebarTab("interact");
+                                setIsSidebarOpen(true);
+                                addLog(
+                                  `[history] Restored contract: ${d.contractAddress.slice(0, 10)}... (${restoredAbi.length || 0} ABI entr${restoredAbi.length === 1 ? "y" : "ies"})`
+                                );
                               }}
                             />
                           ))}
@@ -1233,10 +1368,16 @@ export default function StarkzapIDE() {
               <div className="flex-1 overflow-y-auto custom-scrollbar p-12">
                 <InteractPanel
                   contractAddress={contractAddress}
-                  abi={(activeFileId && buildOutputsByFile[activeFileId]) ? buildOutputsByFile[activeFileId].abi : []}
+                  abi={activeBuildData?.abi ?? []}
                   account={starknetAccount}
                   szWallet={szWallet}
                   walletType={walletType}
+                  walletAddress={walletAddress}
+                  strkBalance={strkBalance}
+                  isFetchingBalance={isFetchingBalance}
+                  fetchStrkBalance={fetchStrkBalance}
+                  network={network}
+                  handleNetworkSwitch={handleNetworkSwitch}
                   addLog={addLog}
                   provider={sdkRef.current?.getProvider() as unknown as ProviderInterface | null}
                   netConfig={getNetworkConfig(network)}
