@@ -26,7 +26,7 @@
     "clsx": "^2.1.1",
     "cobe": "^2.0.1",
     "cross-env": "^10.1.0",
-    "ethers": "5.7.2",
+    "ethers": "^6.13.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.7.0",
     "next": "16.2.1",
@@ -38,11 +38,6 @@
     "starkzap": "^2.0.0",
     "tailwind-merge": "^3.5.0",
     "three": "^0.183.2"
-  },
-  "overrides": {
-    "@avnu/avnu-sdk": {
-      "ethers": "^6.13.0"
-    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
