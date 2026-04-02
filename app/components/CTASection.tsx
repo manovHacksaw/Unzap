@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 const sectionVariants = {
     initial: { opacity: 0, x: 40 },
@@ -37,17 +38,19 @@ export default function CTASection() {
                     Watch Demo
                 </motion.button>
 
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="px-5 py-2.5 text-xs uppercase tracking-widest text-white border transition-all hover:bg-white/5"
-                    style={{
-                        borderColor: "rgba(255,255,255,0.25)",
-                        background: "rgba(255,255,255,0.04)",
-                        boxShadow: "0 0 18px rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(255,255,255,0.1)",
-                    }}
-                >
-                    Try Unzap Studio Now
-                </motion.button>
+                <motion.div whileHover={{ scale: 1.05 }}>
+                    <Link
+                        href="/studio"
+                        className="block px-5 py-2.5 text-xs uppercase tracking-widest text-white border transition-all hover:bg-white/5"
+                        style={{
+                            borderColor: "rgba(255,255,255,0.25)",
+                            background: "rgba(255,255,255,0.04)",
+                            boxShadow: "0 0 18px rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(255,255,255,0.1)",
+                        }}
+                    >
+                        Try Unzap Studio Now
+                    </Link>
+                </motion.div>
             </div>
         </motion.div>
     );

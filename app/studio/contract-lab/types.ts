@@ -195,3 +195,16 @@ export interface FnResult {
   decoded: string;
   extra?: string;
 }
+
+export type StudioToastTone = "success" | "error" | "info" | "warning";
+
+export interface StudioToastInput {
+  title: string;
+  description?: string;
+  tone?: StudioToastTone;
+}
+
+export interface StudioToast extends StudioToastInput {
+  id: string;
+  tone: StudioToastTone;
+}

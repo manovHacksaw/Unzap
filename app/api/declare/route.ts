@@ -37,8 +37,10 @@ export async function POST(req: Request) {
     });
 
     const account = wallet.getAccount();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await account.declare({ contract: sierra as any, casm: casm as any });
+    const result = await account.declare({
+      contract: sierra as Parameters<typeof account.declare>[0]["contract"],
+      casm: casm as Parameters<typeof account.declare>[0]["casm"],
+    });
 
     // Wait for confirmation on the server side
     const provider = new RpcProvider({ nodeUrl: netConfig.rpcUrl });

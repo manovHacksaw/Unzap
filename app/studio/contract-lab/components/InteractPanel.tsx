@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { getNetworkConfig } from "@/lib/network-config";
-import type { AbiEntry, CallLogEntry, ContractHistoryItem, FnResult, TransactionData, SzWalletType } from "../types";
+import type { AbiEntry, CallLogEntry, ContractHistoryItem, FnResult, StudioToastInput, TransactionData, SzWalletType } from "../types";
 import { CopyButton } from "./CopyButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,7 @@ interface InteractPanelProps {
   recentDeployments: ContractHistoryItem[];
   layout?: "panel" | "fullscreen";
   activeFileName?: string;
+  notify?: (toast: StudioToastInput) => void;
 }
 
 export function InteractPanel({
@@ -76,6 +77,7 @@ export function InteractPanel({
   recentDeployments,
   layout = "panel",
   activeFileName = "",
+  notify,
 }: InteractPanelProps) {
   const [customAddress, setCustomAddress] = useState("");
   const [customAbiText, setCustomAbiText] = useState("");
@@ -263,14 +265,24 @@ export function InteractPanel({
       setShowCustomTarget(false);
       setActiveSubTab("functions");
       addLog(`[interact] Loaded ${address.slice(0, 10)}... with ${resolvedAbi.length} ABI entr${resolvedAbi.length === 1 ? "y" : "ies"}.`);
+      notify?.({
+        tone: "success",
+        title: "Contract interface loaded",
+        description: `${resolvedAbi.length} ABI entr${resolvedAbi.length === 1 ? "y" : "ies"} loaded for ${address.slice(0, 10)}...`,
+      });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to load contract ABI.";
       setCustomAbiError(message);
       addLog(`[interact] ${message}`);
+      notify?.({
+        tone: "error",
+        title: "Contract load failed",
+        description: message,
+      });
     } finally {
       setIsLoadingTarget(false);
     }
-  }, [addLog, resolveAbiForAddress]);
+  }, [addLog, notify, resolveAbiForAddress]);
 
   const callFn = async (fn: AbiEntry) => {
     if (!effectiveAddress) return;
@@ -362,12 +374,22 @@ export function InteractPanel({
       setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "confirmed ✓" } }));
       logTransaction({ hash: txHash, type: fnName, status: "success" });
       setCallLog(prev => prev.map(e => e.id === logEntry.id ? { ...e, confirmed: true } : e));
+      notify?.({
+        tone: "success",
+        title: `${fnName} confirmed`,
+        description: walletType === "privy" ? "Gasless transaction landed successfully." : "Transaction landed successfully.",
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setFuncErrors(prev => ({ ...prev, [fnName]: msg }));
       logEntry.error = msg;
       addLog(`execute ${fnName} failed: ${msg.slice(0, 80)}`);
       setCallLog(prev => [logEntry, ...prev]);
+      notify?.({
+        tone: "error",
+        title: `${fnName} failed`,
+        description: msg.slice(0, 140),
+      });
     } finally {
       setFuncLoading(prev => ({ ...prev, [fnName]: false }));
     }
@@ -379,6 +401,11 @@ export function InteractPanel({
   const copyAddress = () => {
     navigator.clipboard.writeText(effectiveAddress);
     setCopiedAddress(true);
+    notify?.({
+      tone: "success",
+      title: "Contract address copied",
+      description: "The active contract address is now in your clipboard.",
+    });
     setTimeout(() => setCopiedAddress(false), 1500);
   };
 
@@ -539,7 +566,16 @@ export function InteractPanel({
                   <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500/80 uppercase tracking-widest">
                     <Check className="w-2.5 h-2.5" /> Output
                   </div>
-                  <CopyButton text={result.extra ? `${result.decoded} (${result.extra})` : result.decoded} />
+                  <CopyButton
+                    text={result.extra ? `${result.decoded} (${result.extra})` : result.decoded}
+                    onCopy={() =>
+                      notify?.({
+                        tone: "success",
+                        title: "Result copied",
+                        description: `${fnName} output copied to your clipboard.`,
+                      })
+                    }
+                  />
                 </div>
                 <div className="font-mono text-[11px] text-emerald-300/80 break-all">{result.decoded}</div>
                 {result.extra && (
@@ -571,46 +607,27 @@ export function InteractPanel({
 
   const InteractionMetaStrip = ({ compact = false }: { compact?: boolean }) => (
     <div className={clsx(
-      "flex flex-wrap items-center gap-2",
-      compact ? "px-3 py-2 border-b border-border/40 bg-black/10" : "mb-5"
+      "flex flex-wrap items-center gap-3",
+      compact ? "px-3 py-2 border-b border-neutral-800 bg-black/10" : "mb-5"
     )}>
-      <Badge
-        variant="outline"
-        className="border-amber-500/20 bg-amber-500/10 text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-300"
-      >
-        <Zap className="w-3 h-3" />
-        Powered by StarkZap SDK
-      </Badge>
-      <Badge
-        variant="outline"
-        className={clsx(
-          "text-[9px] font-semibold uppercase tracking-[0.16em]",
-          walletType === "privy"
-            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-            : "border-border/60 bg-white/[0.03] text-neutral-300"
-        )}
-      >
-        <Shield className="w-3 h-3" />
-        {walletType === "privy" ? "Transactions are gasless" : "Gasless with Privy"}
-      </Badge>
+      <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-500">StarkZap SDK</span>
+      <span className={clsx("text-[9px] font-semibold uppercase tracking-[0.16em]", walletType === "privy" ? "text-emerald-400/80" : "text-neutral-500")}>
+        {walletType === "privy" ? "Gasless" : "Gasless with Privy"}
+      </span>
       {walletAddress && (
-        <Badge
-          variant="outline"
-          className="border-border/60 bg-white/[0.03] text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-300"
-        >
-          <Wallet className="w-3 h-3" />
-          {walletType === "privy" ? "Privy session active" : "Self-managed wallet"}
-        </Badge>
+        <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+          {walletType === "privy" ? "Privy session" : "Extension wallet"}
+        </span>
       )}
     </div>
   );
 
   // ── wallet + network bar ──────────────────────────────────────────────────
   const WalletNetworkBar = () => (
-    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50 bg-black/20 flex-shrink-0">
+    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-neutral-800 bg-black/20 flex-shrink-0">
       {/* Network toggle */}
       {handleNetworkSwitch && (
-        <div className="flex items-center p-0.5 rounded-md bg-black/30 border border-border/50 text-[9px] font-bold uppercase tracking-wider flex-shrink-0">
+        <div className="flex items-center p-0.5 rounded-md bg-black/30 border border-neutral-800 text-[9px] font-bold uppercase tracking-wider flex-shrink-0">
           <button
             onClick={() => handleNetworkSwitch("mainnet")}
             className={clsx(
@@ -679,7 +696,7 @@ export function InteractPanel({
 
   // ── address bar ───────────────────────────────────────────────────────────
   const AddressBar = () => (
-    <div className="flex-shrink-0 border-b border-border/50 bg-black/20">
+    <div className="flex-shrink-0 border-b border-neutral-800 bg-black/20">
       {effectiveAddress ? (
         <div className="px-3 py-2 space-y-1.5">
           <div className="flex items-center justify-between">
@@ -745,7 +762,7 @@ export function InteractPanel({
 
       {/* Inline load form */}
       {showCustomTarget && (
-        <div className="px-3 pb-3 pt-1 border-t border-border/40 bg-black/10 space-y-2.5 animate-in slide-in-from-top-1 duration-150">
+        <div className="px-3 pb-3 pt-1 border-t border-neutral-800 bg-black/10 space-y-2.5 animate-in slide-in-from-top-1 duration-150">
           <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Load Contract</div>
           <div>
             <label className="text-[9px] text-muted-foreground/50 block mb-1">Address</label>
@@ -813,7 +830,7 @@ export function InteractPanel({
       )}
 
       {/* Tab strip */}
-      <div className="flex h-8 border-t border-border/40 bg-black/10">
+      <div className="flex h-8 border-t border-neutral-800 bg-black/10">
         {(["functions", "log"] as const).map(tab => (
           <button
             key={tab}
@@ -845,24 +862,49 @@ export function InteractPanel({
         <WalletNetworkBar />
         <InteractionMetaStrip compact />
         <AddressBar />
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
-          <div className="w-12 h-12 rounded-xl bg-black/30 border border-border/50 flex items-center justify-center">
-            <Activity className="w-5 h-5 text-muted-foreground/30" />
+        <div className="flex-1 p-6">
+          <div className="rounded-xl border border-neutral-800 bg-black/20 p-5">
+            <div className="flex items-start gap-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">Interface ready</p>
+                <h3 className="mt-2 text-[18px] font-semibold tracking-tight text-white">Load a contract and start calling functions</h3>
+                <p className="mt-2 max-w-xl text-[12px] leading-relaxed text-neutral-400">
+                  Pull in a deployed contract address and we’ll auto-load its ABI when available. If you already deployed from this studio, you can jump back in from your recent contracts.
+                </p>
+                <div className="mt-4 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="h-9 bg-amber-500 px-4 text-[10px] font-bold uppercase tracking-[0.16em] text-black hover:bg-amber-400"
+                    onClick={() => setShowCustomTarget(true)}
+                  >
+                    <Plus className="w-3 h-3" />Load External Contract
+                  </Button>
+                </div>
+                <p className="mt-3 text-[10px] text-neutral-500">Paste an address only if you want to inspect an existing deployment.</p>
+              </div>
+            </div>
+
+            {recentDeployments.length > 0 && (
+              <div className="mt-5 space-y-2">
+                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-500">Recent deployments</div>
+                <div className="grid gap-2">
+                  {recentDeployments.slice(0, 3).map((deployment) => (
+                    <button
+                      key={deployment.id}
+                      onClick={() => void loadCustomTarget(deployment.contractAddress, normalizeAbiEntries(deployment.abi))}
+                      className="group flex items-center gap-3 rounded-lg border border-neutral-800 bg-[#0a0a0a] px-3 py-3 text-left transition-colors hover:border-amber-500/20 hover:bg-black/20"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[11px] font-semibold text-neutral-100">{deployment.name || "Contract"}</div>
+                        <div className="mt-0.5 truncate font-mono text-[10px] text-neutral-500">{deployment.contractAddress}</div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 flex-shrink-0 text-neutral-600 transition-colors group-hover:text-amber-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="space-y-1">
-            <p className="text-[12px] text-foreground/60 font-semibold">No Contract Loaded</p>
-            <p className="text-[10px] text-muted-foreground/40 leading-relaxed max-w-[200px]">
-              Deploy from the Deploy tab or load an existing contract address.
-            </p>
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 text-[10px] font-bold uppercase tracking-wider border border-border/50 hover:border-amber-500/30 hover:text-amber-400 hover:bg-amber-500/5 gap-1.5"
-            onClick={() => setShowCustomTarget(true)}
-          >
-            <Plus className="w-3 h-3" />Load External Contract
-          </Button>
         </div>
       </div>
     );
@@ -922,7 +964,7 @@ export function InteractPanel({
                 </div>
               ) : (
                 callLog.map(entry => (
-                  <div key={entry.id} className="p-2.5 rounded-lg border border-border/40 bg-black/20 space-y-1 hover:border-border/60 transition-colors group">
+                  <div key={entry.id} className="p-2.5 rounded-lg border border-neutral-800 bg-black/20 space-y-1 hover:border-neutral-700 transition-colors group">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
                         <div className={clsx(
@@ -983,17 +1025,14 @@ export function InteractPanel({
     <div className="flex flex-col h-full animate-in fade-in duration-300">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-            <Zap className="w-6 h-6 text-amber-500" />
-          </div>
+        <div>
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-amber-500/60">Contract Interface</span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-neutral-500">Contract Interface</span>
               {effectiveAddress && (
-                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[7px] font-bold uppercase text-emerald-500">Live</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                  <span className="text-[7px] font-bold uppercase tracking-[0.18em] text-emerald-500/80">Live</span>
                 </div>
               )}
             </div>
@@ -1003,7 +1042,7 @@ export function InteractPanel({
 
         <div className="flex items-center gap-3 flex-shrink-0">
           {effectiveAddress && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/30 border border-border/50">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/30 border border-neutral-800">
               <span className="text-[10px] font-mono text-muted-foreground/70 truncate max-w-[180px]">{effectiveAddress}</span>
               <Tooltip>
                 <TooltipTrigger>
@@ -1025,7 +1064,7 @@ export function InteractPanel({
               "h-8 text-[10px] font-bold uppercase tracking-wider border gap-1.5",
               showCustomTarget
                 ? "bg-amber-500 text-black border-amber-400 hover:bg-amber-400"
-                : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+                : "border-neutral-800 text-muted-foreground hover:text-foreground hover:border-neutral-700"
             )}
             onClick={() => setShowCustomTarget(!showCustomTarget)}
           >
@@ -1036,12 +1075,12 @@ export function InteractPanel({
       </div>
 
       {/* Wallet + Network bar (fullscreen) */}
-      <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-black/20 border border-border/50">
+      <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-black/20 border border-neutral-800">
         {/* Network */}
         {handleNetworkSwitch && (
           <div className="flex items-center gap-2">
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/40">Network</span>
-            <div className="flex items-center p-0.5 rounded-md bg-black/30 border border-border/50 text-[9px] font-bold uppercase tracking-wider">
+            <div className="flex items-center p-0.5 rounded-md bg-black/30 border border-neutral-800 text-[9px] font-bold uppercase tracking-wider">
               <button
                 onClick={() => handleNetworkSwitch("mainnet")}
                 className={clsx("px-2.5 py-1 rounded transition-all", network === "mainnet" ? "bg-amber-500 text-black" : "text-muted-foreground hover:text-foreground")}
@@ -1171,7 +1210,7 @@ export function InteractPanel({
           { label: "Write", value: writeFunctions.length, color: "text-amber-400" },
           { label: "Calls", value: callLog.length, color: "text-sky-400" },
         ].map(stat => (
-          <div key={stat.label} className="px-4 py-3 rounded-lg bg-black/20 border border-border/40">
+          <div key={stat.label} className="px-4 py-3 rounded-lg bg-black/20 border border-neutral-800">
             <div className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-1">{stat.label}</div>
             <div className={clsx("text-xl font-bold", stat.color)}>{stat.value}</div>
           </div>
@@ -1179,7 +1218,7 @@ export function InteractPanel({
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border/40 mb-5">
+      <div className="flex items-center gap-1 border-b border-neutral-800 mb-5">
         {(["functions", "log"] as const).map(tab => (
           <button
             key={tab}
@@ -1237,7 +1276,7 @@ export function InteractPanel({
             <div className="py-16 text-center text-[11px] text-muted-foreground/30 font-mono italic">No calls yet.</div>
           ) : (
             callLog.map(entry => (
-              <div key={entry.id} className="flex items-center gap-4 p-3.5 rounded-lg border border-border/40 bg-black/20 hover:bg-black/30 hover:border-border/60 transition-all group">
+              <div key={entry.id} className="flex items-center gap-4 p-3.5 rounded-lg border border-neutral-800 bg-black/20 hover:bg-black/30 hover:border-neutral-700 transition-all group">
                 <div className={clsx(
                   "w-2 h-2 rounded-full flex-shrink-0",
                   entry.error ? "bg-red-500" : entry.confirmed ? "bg-emerald-500" : entry.txHash ? "bg-amber-500 animate-pulse" : "bg-emerald-500"

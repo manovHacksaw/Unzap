@@ -1,2 +1,4 @@
 // Server-side stub — @hyperlane-xyz/sdk is client-only
-export default {};
+const hyperlaneSdkStub = {};
+
+export default hyperlaneSdkStub;

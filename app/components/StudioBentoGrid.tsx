@@ -94,7 +94,7 @@ export interface BentoItem {
   featured?: boolean;
 }
 
-interface BentoCardProps extends BentoItem {}
+type BentoCardProps = BentoItem;
 
 function BentoCard({ title, description, icon: Icon, href, className, featured = false }: BentoCardProps) {
   const [isHovered, setIsHovered] = useState(false);

@@ -25,16 +25,26 @@ import type {
   ExplorerEntry,
   BuildStatus,
   AbiEntry,
+  StudioToastInput,
 } from "../types";
 import type { Account, WalletAccount } from "starknet";
 
 // ── tiny helpers ──────────────────────────────────────────────────────────────
 
-function HashValue({ value, href }: { value: string; href?: string }) {
+function HashValue({
+  value,
+  href,
+  onCopy,
+}: {
+  value: string;
+  href?: string;
+  onCopy?: () => void;
+}) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(value);
     setCopied(true);
+    onCopy?.();
     setTimeout(() => setCopied(false), 1800);
   };
   const short = `${value.slice(0, 10)}…${value.slice(-6)}`;
@@ -100,6 +110,7 @@ interface DeployPanelProps {
   handleDeploy: () => void;
   onReset: () => void;
   isWalletConnecting: boolean;
+  notify?: (toast: StudioToastInput) => void;
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
@@ -131,6 +142,7 @@ export function DeployPanel({
   handleDeploy,
   onReset,
   isWalletConnecting,
+  notify,
 }: DeployPanelProps) {
   const isBuilt = !!activeBuildData && buildStatus === "success";
   const isDeclared = deployStatus === "declared" || deployStatus === "deploying" || deployStatus === "deployed";
@@ -162,19 +174,26 @@ export function DeployPanel({
     ? "Declare contract to register class hash"
     : "Build your contract to continue";
 
+  const walletModeLabel =
+    walletType === "privy"
+      ? "Privy gasless flow"
+      : walletType === "extension"
+      ? "Self-managed extension"
+      : "Connect a wallet";
+
   return (
     <ScrollArea className="h-full">
     <div className="flex flex-col min-h-full bg-transparent">
 
       {/* ── Contract Header ──────────────────────────────────────────── */}
-      <div className="px-5 pt-6 pb-5 border-b border-border/50">
+      <div className="px-5 pt-6 pb-5 border-b border-neutral-800">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-bold text-white truncate">
               {activeFile?.filename ?? "No file selected"}
             </p>
             <p className="text-[10px] text-neutral-600 mt-0.5">
-              {walletType === "privy" ? "Privy · Gasless" : walletType === "extension" ? "Extension wallet" : "No wallet"}
+              {walletType === "privy" ? "Privy · Gasless" : walletType === "extension" ? "Extension wallet" : "No wallet connected"}
             </p>
           </div>
 
@@ -187,7 +206,7 @@ export function DeployPanel({
               ? "bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/10"
               : isBuilt
               ? "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/10"
-              : "bg-white/5 text-muted-foreground border-border/50 hover:bg-white/5"
+              : "bg-white/5 text-muted-foreground border-neutral-800 hover:bg-white/5"
           )}>
             <span className={clsx(
               "w-1.5 h-1.5 rounded-full mr-1",
@@ -195,6 +214,41 @@ export function DeployPanel({
             )} />
             {isDeployed ? "Deployed" : isDeclared ? "Declared" : isBuilt ? "Built" : "Idle"}
           </Badge>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-neutral-800 bg-black/20 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-neutral-500">Current step</div>
+              <div className="mt-2 text-[14px] font-semibold tracking-tight text-white">{nextStep}</div>
+            </div>
+
+            <div className="flex flex-col items-end gap-2">
+              <div className="rounded-full border border-neutral-800 bg-black/20 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+                {network === "mainnet" ? "Mainnet" : "Sepolia"}
+              </div>
+              <div className="rounded-full border border-neutral-800 bg-black/20 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+                {walletModeLabel}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="rounded-lg border border-neutral-800 bg-[#0a0a0a] px-3 py-2.5">
+              <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-neutral-500">Status</div>
+              <div className="mt-1 text-[12px] font-semibold text-white">
+                {isDeployed ? "Live" : isDeclared ? "Declared" : isBuilt ? "Ready" : "Draft"}
+              </div>
+            </div>
+            <div className="rounded-lg border border-neutral-800 bg-[#0a0a0a] px-3 py-2.5">
+              <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-neutral-500">Functions</div>
+              <div className="mt-1 text-[12px] font-semibold text-white">{fnCount || "—"}</div>
+            </div>
+            <div className="rounded-lg border border-neutral-800 bg-[#0a0a0a] px-3 py-2.5">
+              <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-neutral-500">Artifacts</div>
+              <div className="mt-1 text-[12px] font-semibold text-white">{buildSizeKb ? `${buildSizeKb} KB` : "Pending"}</div>
+            </div>
+          </div>
         </div>
 
         {/* Contract metadata — only when built */}
@@ -219,7 +273,7 @@ export function DeployPanel({
       </div>
 
       {/* ── Environment ──────────────────────────────────────────────── */}
-      <div className="px-5 py-5 space-y-4 border-b border-border/50">
+      <div className="px-5 py-5 space-y-4 border-b border-neutral-800">
         <SectionLabel>Environment</SectionLabel>
 
         {/* Network */}
@@ -231,7 +285,7 @@ export function DeployPanel({
             )} />
             <span className="text-[11px] text-neutral-300 font-medium">{netConfig.label}</span>
           </div>
-          <div className="flex items-center p-0.5 rounded-lg bg-black/30 border border-border/60 overflow-hidden text-[9px] font-bold uppercase tracking-wider">
+          <div className="flex items-center p-0.5 rounded-lg bg-black/30 border border-neutral-800 overflow-hidden text-[9px] font-bold uppercase tracking-wider">
             <button
               onClick={() => handleNetworkSwitch("mainnet")}
               className={clsx(
@@ -262,7 +316,14 @@ export function DeployPanel({
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
                   <span
                     className="font-mono text-[11px] text-foreground/80 cursor-copy select-all"
-                    onClick={() => navigator.clipboard.writeText(walletAddress)}
+                    onClick={() => {
+                      navigator.clipboard.writeText(walletAddress);
+                      notify?.({
+                        tone: "success",
+                        title: "Wallet address copied",
+                        description: "The connected Starknet address is now in your clipboard.",
+                      });
+                    }}
                     title="Click to copy"
                   >
                     {walletAddress.slice(0, 10)}…{walletAddress.slice(-6)}
@@ -284,7 +345,7 @@ export function DeployPanel({
             </div>
 
             {/* Balance */}
-            <div className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-black/40 border border-border/50">
+            <div className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-black/40 border border-neutral-800">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center">
                   <Zap className="w-3 h-3 fill-amber-500 text-amber-500" />
@@ -325,14 +386,24 @@ export function DeployPanel({
       </div>
 
       {/* ── Deployment State ─────────────────────────────────────────── */}
-      <div className="px-5 py-5 space-y-4 border-b border-border/50">
+      <div className="px-5 py-5 space-y-4 border-b border-neutral-800">
         <SectionLabel>Deployment State</SectionLabel>
 
         <div className="space-y-3">
           <div>
             <p className="text-[10px] text-neutral-500">Class Hash</p>
             {classHash ? (
-              <HashValue value={classHash} href={`${netConfig.voyager}/class/${classHash}`} />
+              <HashValue
+                value={classHash}
+                href={`${netConfig.voyager}/class/${classHash}`}
+                onCopy={() =>
+                  notify?.({
+                    tone: "success",
+                    title: "Class hash copied",
+                    description: "The declared class hash is ready to share or inspect.",
+                  })
+                }
+              />
             ) : (
               <p className="text-[11px] text-neutral-700 mt-0.5 italic">Not declared</p>
             )}
@@ -343,7 +414,17 @@ export function DeployPanel({
           <div>
             <p className="text-[10px] text-neutral-500">Contract Address</p>
             {contractAddress ? (
-              <HashValue value={contractAddress} href={`${netConfig.voyager}/contract/${contractAddress}`} />
+              <HashValue
+                value={contractAddress}
+                href={`${netConfig.voyager}/contract/${contractAddress}`}
+                onCopy={() =>
+                  notify?.({
+                    tone: "success",
+                    title: "Contract address copied",
+                    description: "The deployed contract address is now in your clipboard.",
+                  })
+                }
+              />
             ) : (
               <p className="text-[11px] text-neutral-700 mt-0.5 italic">Not deployed</p>
             )}
@@ -353,7 +434,7 @@ export function DeployPanel({
 
       {/* ── Constructor Inputs ───────────────────────────────────────── */}
       {deployStatus === "declared" && ctorInputs.length > 0 && (
-        <div className="px-5 py-5 space-y-3 border-b border-border/50">
+        <div className="px-5 py-5 space-y-3 border-b border-neutral-800">
           <SectionLabel>Constructor</SectionLabel>
           {ctorInputs.map((inp) => (
             <div key={inp.name}>
@@ -396,7 +477,7 @@ export function DeployPanel({
 
       {/* ── Execution Pipeline ───────────────────────────────────────── */}
       {deploySteps.length > 0 && (
-        <div className="px-5 py-5 border-b border-border/50">
+        <div className="px-5 py-5 border-b border-neutral-800">
           <div className="flex items-center gap-2 mb-5">
             <Activity className="w-3 h-3 text-neutral-600" />
             <SectionLabel>Pipeline</SectionLabel>
