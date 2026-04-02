@@ -18,39 +18,59 @@ const sectionVariants = {
 export default function CTASection() {
     return (
         <motion.div
-            className="mt-auto pb-8 flex flex-col items-end"
+            className="w-full max-w-sm rounded-[22px] border border-white/8 bg-white/[0.025] p-5 backdrop-blur-sm sm:p-6 xl:mt-auto xl:self-end"
             variants={sectionVariants}
             initial="initial"
             animate="animate"
         >
-            <p className="text-neutral-400 text-sm leading-relaxed mb-2 text-right">
-                Write Cairo.<br />Execute live.<br />See every step.<br />Right here.
-            </p>
-            <p className="text-neutral-600 text-xs tracking-widest uppercase mb-7 max-w-[320px] text-right">
-                No install. No setup. No CLI.
+            <div
+                className="mb-3 text-[10px] uppercase tracking-[0.24em] text-neutral-500"
+                style={{ fontFamily: "monospace" }}
+            >
+                Launch the studio
+            </div>
+
+            <p className="text-sm leading-relaxed text-neutral-200">
+                Open Unzap and start building, deploying, and interacting from one browser-native Starknet workspace.
             </p>
 
-            <div className="flex items-center gap-7">
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="text-xs uppercase tracking-widest text-white hover:text-neutral-300 transition-colors"
+            <p className="mt-3 text-sm leading-relaxed text-neutral-500">
+                Mainnet-ready. Works with Privy or a local extension wallet. No local setup.
+            </p>
+
+            <motion.div whileHover={{ y: -2 }} className="mt-5 w-full">
+                <Link
+                    href="/studio"
+                    className="block w-full rounded-[14px] border px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-[0.2em] text-black transition-all hover:bg-neutral-100"
+                    style={{
+                        borderColor: "rgba(255,255,255,0.6)",
+                        background: "#f5f5f5",
+                        boxShadow: "0 12px 28px rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.12) inset",
+                    }}
                 >
-                    Watch Demo
-                </motion.button>
+                    Try Unzap Studio Now
+                </Link>
+            </motion.div>
 
-                <motion.div whileHover={{ scale: 1.05 }}>
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+                <motion.div whileHover={{ y: -1 }}>
                     <Link
-                        href="/studio"
-                        className="block px-5 py-2.5 text-xs uppercase tracking-widest text-white border transition-all hover:bg-white/5"
-                        style={{
-                            borderColor: "rgba(255,255,255,0.25)",
-                            background: "rgba(255,255,255,0.04)",
-                            boxShadow: "0 0 18px rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(255,255,255,0.1)",
-                        }}
+                        href="/studio/contract-lab"
+                        className="block text-[11px] uppercase tracking-[0.18em] text-neutral-400 transition-colors hover:text-white"
                     >
-                        Try Unzap Studio Now
+                        Open Contract Lab
                     </Link>
                 </motion.div>
+
+                <motion.a
+                    whileHover={{ y: -1 }}
+                    href="https://x.com/manovmandal/status/2039754947861073988"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block text-[11px] uppercase tracking-[0.18em] text-neutral-400 transition-colors hover:text-white"
+                >
+                    Watch Demo ↗
+                </motion.a>
             </div>
         </motion.div>
     );

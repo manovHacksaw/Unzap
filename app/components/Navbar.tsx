@@ -2,8 +2,14 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 
-const navLinks = ["STUDIO", "SOLUTIONS", "DEVELOPERS", "RESOURCES"];
+const navLinks = [
+    { label: "STUDIO", href: "/studio" },
+    { label: "SOLUTIONS", href: "/#solutions" },
+    { label: "DEVELOPERS", href: "/#developers" },
+    { label: "RESOURCES", href: "/#resources" },
+];
 
 const navVariants = {
     initial: { opacity: 0, backdropFilter: "blur(10px)" },
@@ -27,7 +33,7 @@ const itemVariants = {
 export default function Navbar() {
     return (
         <motion.header
-            className="relative z-50 flex items-start justify-between px-10 pt-8"
+            className="relative z-50 flex flex-col gap-6 px-5 pt-6 sm:px-8 lg:flex-row lg:items-start lg:justify-between lg:px-10 lg:pt-8"
             variants={navVariants}
             initial="initial"
             animate="animate"
@@ -52,17 +58,20 @@ export default function Navbar() {
                 </span>
             </motion.div>
 
-            <nav className="flex flex-col items-end gap-1">
+            <nav className="grid grid-cols-2 gap-x-5 gap-y-1 self-start text-left sm:flex sm:flex-wrap sm:justify-end lg:flex-col lg:items-end lg:text-right">
                 {navLinks.map((link) => (
-                    <motion.a
-                        key={link}
-                        href="#"
+                    <motion.div
+                        key={link.label}
                         variants={itemVariants}
-                        className="flex items-center gap-1 text-[11px] text-neutral-400 uppercase tracking-[0.15em] hover:text-neutral-200 transition-colors"
                     >
-                        {link}
-                        <span className="text-[9px] leading-none">↗</span>
-                    </motion.a>
+                        <Link
+                            href={link.href}
+                            className="flex items-center gap-1 text-[11px] text-neutral-400 uppercase tracking-[0.15em] hover:text-neutral-200 transition-colors"
+                        >
+                            {link.label}
+                            <span className="text-[9px] leading-none">↗</span>
+                        </Link>
+                    </motion.div>
                 ))}
             </nav>
         </motion.header>
