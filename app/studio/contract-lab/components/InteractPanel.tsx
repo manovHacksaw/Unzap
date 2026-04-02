@@ -3,33 +3,48 @@
 import { useState, useMemo } from "react";
 import { Account, WalletAccount, shortString, type ProviderInterface } from "starknet";
 import {
-  Activity,
   AlertCircle,
   Box,
   Check,
+  ChevronDown,
   ChevronRight,
   Code2,
-  Cpu,
-  Edit2,
-  Globe,
-  Info,
-  Loader2,
+  Copy,
+  ExternalLink,
   Hash as LucideHash,
+  Loader2,
   Plus,
+  RefreshCw,
   Shield,
-  Sparkles,
   X,
   Zap,
+  Activity,
+  Clock,
+  ArrowUpRight,
+  Wallet,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { getNetworkConfig } from "@/lib/network-config";
-import type { AbiEntry, CallLogEntry, ContractHistoryItem, FnResult, TransactionData } from "../types";
+import type { AbiEntry, CallLogEntry, ContractHistoryItem, FnResult, TransactionData, SzWalletType } from "../types";
 import { CopyButton } from "./CopyButton";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface InteractPanelProps {
   contractAddress: string;
   abi: AbiEntry[];
   account: Account | WalletAccount | null;
+  szWallet?: SzWalletType | null;
+  walletType?: "privy" | "extension" | null;
+  walletAddress?: string;
+  strkBalance?: string | null;
+  isFetchingBalance?: boolean;
+  fetchStrkBalance?: (addr: string) => void;
+  network?: "mainnet" | "sepolia";
+  handleNetworkSwitch?: (n: "mainnet" | "sepolia") => void;
   addLog: (msg: string) => void;
   provider: ProviderInterface | null;
   netConfig: ReturnType<typeof getNetworkConfig>;
@@ -44,6 +59,14 @@ export function InteractPanel({
   contractAddress,
   abi: deployedAbi,
   account,
+  szWallet = null,
+  walletType = null,
+  walletAddress = "",
+  strkBalance = null,
+  isFetchingBalance = false,
+  fetchStrkBalance,
+  network,
+  handleNetworkSwitch,
   addLog,
   provider,
   netConfig,
@@ -63,9 +86,11 @@ export function InteractPanel({
   const [funcResults, setFuncResults] = useState<Record<string, FnResult>>({});
   const [funcLoading, setFuncLoading] = useState<Record<string, boolean>>({});
   const [funcErrors, setFuncErrors] = useState<Record<string, string>>({});
+  const [expandedFns, setExpandedFns] = useState<Record<string, boolean>>({});
 
   const [callLog, setCallLog] = useState<CallLogEntry[]>([]);
   const [activeSubTab, setActiveSubTab] = useState<"functions" | "log">("functions");
+  const [copiedAddress, setCopiedAddress] = useState(false);
 
   const isFullscreen = layout === "fullscreen";
 
@@ -106,6 +131,7 @@ export function InteractPanel({
   const viewFunctions = externalFunctions.filter((fn: AbiEntry) => fn.state_mutability === "view");
   const writeFunctions = externalFunctions.filter((fn: AbiEntry) => fn.state_mutability === "external");
 
+  // ── type helpers ──────────────────────────────────────────────────────────
   const isU256 = (t: string) => t === "core::integer::u256" || t === "u256";
   const isBool = (t: string) => t === "core::bool" || t === "bool";
   const isAddress = (t: string) => t.includes("ContractAddress");
@@ -231,7 +257,7 @@ export function InteractPanel({
   };
 
   const executeFn = async (fn: AbiEntry) => {
-    if (!account) { onRequestWallet(); return; }
+    if (!account && !szWallet) { onRequestWallet(); return; }
     if (!effectiveAddress) return;
     const fnName = fn.name as string;
     setFuncLoading(prev => ({ ...prev, [fnName]: true }));
@@ -247,14 +273,32 @@ export function InteractPanel({
     try {
       const calldata = buildCalldata(fn);
       const call = { contractAddress: effectiveAddress, entrypoint: fnName, calldata };
-      const tx = await account.execute([call]);
-      const txHash = tx.transaction_hash as string;
-      addLog(`sent ${fnName}: ${txHash}`);
-      setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "pending…" } }));
-      logEntry.txHash = txHash;
-      logTransaction({ hash: txHash, type: fnName, status: "pending" });
-      setCallLog(prev => [logEntry, ...prev]);
-      await account.waitForTransaction(txHash);
+
+      let txHash = "";
+
+      if (walletType === "privy" && szWallet) {
+        // Gasless execution via AVNU paymaster
+        addLog(`${fnName}: sending gasless (AVNU paymaster)…`);
+        const tx = await szWallet.execute([call], { feeMode: "sponsored" });
+        txHash = tx.hash;
+        addLog(`${fnName} gasless tx: ${txHash}`);
+        setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "pending…" } }));
+        logEntry.txHash = txHash;
+        logTransaction({ hash: txHash, type: fnName, status: "pending" });
+        setCallLog(prev => [logEntry, ...prev]);
+        await tx.wait();
+      } else {
+        // Extension wallet — direct execution
+        const tx = await account!.execute([call]);
+        txHash = tx.transaction_hash as string;
+        addLog(`${fnName} tx: ${txHash}`);
+        setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "pending…" } }));
+        logEntry.txHash = txHash;
+        logTransaction({ hash: txHash, type: fnName, status: "pending" });
+        setCallLog(prev => [logEntry, ...prev]);
+        await account!.waitForTransaction(txHash);
+      }
+
       addLog(`${fnName} confirmed ✓`);
       setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "confirmed ✓" } }));
       logTransaction({ hash: txHash, type: fnName, status: "success" });
@@ -270,6 +314,16 @@ export function InteractPanel({
     }
   };
 
+  const toggleExpand = (fnName: string) =>
+    setExpandedFns(prev => ({ ...prev, [fnName]: !prev[fnName] }));
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(effectiveAddress);
+    setCopiedAddress(true);
+    setTimeout(() => setCopiedAddress(false), 1500);
+  };
+
+  // ── input renderer ────────────────────────────────────────────────────────
   const renderInput = (fnName: string, inp: { name: string; type: string }) => {
     const value = funcInputs[fnName]?.[inp.name] ?? "";
     const setVal = (v: string) => setFuncInputs(prev => ({
@@ -281,20 +335,20 @@ export function InteractPanel({
     if (isBool(inp.type)) {
       const checked = value === "true" || value === "1";
       return (
-        <div key={inp.name} className="flex items-center justify-between py-1">
+        <div key={inp.name} className="flex items-center justify-between py-1.5">
           <div className="flex items-center gap-2">
-            <label className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest">{inp.name}</label>
-            <span className="text-[9px] font-mono text-neutral-700">bool</span>
+            <span className="text-[10px] font-mono text-foreground/70">{inp.name}</span>
+            <span className="text-[9px] text-muted-foreground/50">bool</span>
           </div>
           <button
             onClick={() => setVal(checked ? "false" : "true")}
             className={clsx(
-              "w-9 h-5 rounded-full transition-colors relative flex-shrink-0 border",
-              checked ? "bg-emerald-500/20 border-emerald-500/40" : "bg-neutral-900 border-neutral-700"
+              "w-8 h-4 rounded-full transition-all relative flex-shrink-0 border",
+              checked ? "bg-emerald-500/20 border-emerald-500/40" : "bg-white/5 border-border/60"
             )}
           >
             <div className={clsx(
-              "absolute top-0.5 w-4 h-4 rounded-full transition-all",
+              "absolute top-0.5 w-3 h-3 rounded-full transition-all",
               checked ? "translate-x-[18px] bg-emerald-400" : "translate-x-0.5 bg-neutral-600"
             )} />
           </button>
@@ -303,26 +357,27 @@ export function InteractPanel({
     }
 
     return (
-      <div key={inp.name} className="flex flex-col gap-1">
+      <div key={inp.name} className="space-y-1">
         <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest">{inp.name}</label>
-          <span className="text-[9px] font-mono text-neutral-700 truncate max-w-[140px]" title={inp.type}>{shortType}</span>
+          <label className="text-[10px] font-mono text-foreground/60">{inp.name}</label>
+          <span className="text-[9px] text-muted-foreground/40 font-mono truncate max-w-[120px]" title={inp.type}>{shortType}</span>
         </div>
         <input
           placeholder={
             isAddress(inp.type) ? "0x…" :
             isU256(inp.type) ? "integer or 0x…" :
-            isArray(inp.type) ? "a, b, c  (comma-separated)" :
+            isArray(inp.type) ? "a, b, c" :
             "felt252…"
           }
           value={value}
           onChange={e => setVal(e.target.value)}
-          className="w-full bg-black/40 border border-neutral-900 rounded-lg px-3 py-2 text-[11px] font-mono outline-none focus:border-amber-500/30 text-neutral-300 placeholder:text-neutral-800 transition-all"
+          className="w-full bg-black/30 border border-border/50 rounded-md px-2.5 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/10 text-foreground/80 placeholder:text-muted-foreground/30 transition-all"
         />
       </div>
     );
   };
 
+  // ── function card ─────────────────────────────────────────────────────────
   const renderFnCard = (fn: AbiEntry, isView: boolean) => {
     const fnName = fn.name as string;
     const inputs: Array<{ name: string; type: string }> = fn.inputs ?? [];
@@ -330,583 +385,808 @@ export function InteractPanel({
     const result = funcResults[fnName];
     const error = funcErrors[fnName];
     const hasInputs = inputs.length > 0;
+    const isExpanded = expandedFns[fnName] ?? false;
 
     return (
-      <div key={fnName} className={clsx(
-        "rounded-xl border transition-all duration-200",
-        isView ? "border-neutral-800 hover:border-neutral-700" : "border-neutral-800 hover:border-amber-500/20"
-      )}>
-        <div className="flex items-center gap-2.5 px-3.5 py-3">
+      <div
+        key={fnName}
+        className={clsx(
+          "rounded-lg border transition-all duration-150",
+          isView
+            ? "border-border/50 hover:border-emerald-500/20"
+            : "border-border/50 hover:border-amber-500/20",
+          (result || error) && "border-b-0 rounded-b-none"
+        )}
+      >
+        {/* Card header */}
+        <div
+          className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
+          onClick={() => hasInputs && toggleExpand(fnName)}
+        >
           <div className={clsx(
-            "w-2 h-2 rounded-full flex-shrink-0",
-            isView
-              ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"
-              : "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]"
+            "w-1.5 h-1.5 rounded-full flex-shrink-0",
+            isView ? "bg-emerald-500" : "bg-amber-500"
           )} />
-          <span className="text-[11px] font-bold font-mono text-neutral-200 flex-1 truncate">{fnName}</span>
-          <span className={clsx(
-            "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border flex-shrink-0",
+          <span className="text-[12px] font-mono font-medium text-foreground/85 flex-1 truncate">{fnName}</span>
+          <Badge className={clsx(
+            "text-[8px] font-bold uppercase tracking-wider px-1.5 py-0 h-4 flex-shrink-0",
             isView
-              ? "bg-emerald-500/5 text-emerald-600 border-emerald-900"
-              : "bg-amber-500/5 text-amber-600 border-amber-900/60"
+              ? "bg-emerald-500/8 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/8"
+              : "bg-amber-500/8 text-amber-500 border-amber-500/20 hover:bg-amber-500/8"
           )}>
-            {isView ? "view" : "write"}
-          </span>
+            {isView ? "read" : "write"}
+          </Badge>
+          {hasInputs && (
+            <ChevronDown className={clsx(
+              "w-3 h-3 text-muted-foreground/40 transition-transform flex-shrink-0",
+              isExpanded && "rotate-180"
+            )} />
+          )}
         </div>
 
-        <div className="px-3.5 pb-3.5 space-y-3">
-          {hasInputs && (
-            <div className="space-y-2.5 bg-black/20 rounded-lg p-3 border border-neutral-900">
-              {inputs.map(inp => renderInput(fnName, inp))}
-            </div>
-          )}
+        {/* Inputs (shown always if no inputs, else collapsible) */}
+        {(hasInputs ? isExpanded : true) && (
+          <div className="px-3 pb-3 space-y-3">
+            {hasInputs && (
+              <div className="space-y-2 p-2.5 rounded-md bg-black/20 border border-border/40">
+                {inputs.map(inp => renderInput(fnName, inp))}
+              </div>
+            )}
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => isView ? callFn(fn) : executeFn(fn)}
-              disabled={isLoading}
-              className={clsx(
-                "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-1.5",
-                isView
-                  ? "bg-neutral-900 border border-neutral-800 hover:border-emerald-500/30 hover:bg-emerald-500/5 text-emerald-600 hover:text-emerald-400 disabled:opacity-40"
-                  : account
-                    ? "bg-amber-500 text-black hover:bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.15)] disabled:opacity-40"
-                    : "bg-neutral-900 border border-amber-500/20 text-amber-600/60 hover:text-amber-500 hover:bg-amber-500/5 disabled:opacity-40"
-              )}
-            >
-              {isLoading ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : isView ? (
-                "Query"
-              ) : account ? (
-                "Execute"
-              ) : (
-                <><Shield className="w-3 h-3" /> Connect Wallet</>
-              )}
-            </button>
-            {result && (
-              <button
-                onClick={() => setFuncResults(prev => { const n = { ...prev }; delete n[fnName]; return n; })}
-                className="p-2 rounded-lg border border-neutral-900 text-neutral-700 hover:text-neutral-500 hover:border-neutral-800 transition-colors"
-                title="Clear result"
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => isView ? callFn(fn) : executeFn(fn)}
+                disabled={isLoading}
+                className={clsx(
+                  "h-7 flex-1 text-[10px] font-bold uppercase tracking-wider gap-1.5",
+                  isView
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/15 hover:text-emerald-300"
+                    : account
+                    ? "bg-amber-500 text-black hover:bg-amber-400"
+                    : "bg-white/5 text-amber-500/60 border border-amber-500/20 hover:bg-amber-500/8 hover:text-amber-400"
+                )}
+                variant={isView || !account ? "ghost" : "default"}
               >
-                <X className="w-3 h-3" />
-              </button>
+                {isLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : isView ? (
+                  "Query"
+                ) : account ? (
+                  "Execute"
+                ) : (
+                  <><Shield className="w-3 h-3" />Connect</>
+                )}
+              </Button>
+              {(result || error) && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-muted-foreground/40 hover:text-muted-foreground hover:bg-white/5"
+                  onClick={() => {
+                    setFuncResults(prev => { const n = { ...prev }; delete n[fnName]; return n; });
+                    setFuncErrors(prev => { const n = { ...prev }; delete n[fnName]; return n; });
+                  }}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+
+            {/* Result */}
+            {result && (
+              <div className="rounded-md bg-emerald-500/5 border border-emerald-500/15 p-2.5">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500/80 uppercase tracking-widest">
+                    <Check className="w-2.5 h-2.5" /> Output
+                  </div>
+                  <CopyButton text={result.extra ? `${result.decoded} (${result.extra})` : result.decoded} />
+                </div>
+                <div className="font-mono text-[11px] text-emerald-300/80 break-all">{result.decoded}</div>
+                {result.extra && (
+                  <div className="mt-0.5 font-mono text-[9px] text-muted-foreground/50">{result.extra}</div>
+                )}
+                {result.raw.length > 1 && (
+                  <details className="mt-1.5">
+                    <summary className="text-[9px] text-muted-foreground/40 cursor-pointer hover:text-muted-foreground/70 transition-colors">raw felts</summary>
+                    <pre className="mt-1 text-[9px] font-mono text-muted-foreground/40 break-all whitespace-pre-wrap">{JSON.stringify(result.raw, null, 2)}</pre>
+                  </details>
+                )}
+              </div>
+            )}
+
+            {/* Error */}
+            {error && (
+              <div className="rounded-md bg-red-500/5 border border-red-500/15 p-2.5">
+                <div className="flex items-center gap-1 text-[9px] font-bold text-red-400/80 uppercase tracking-widest mb-1">
+                  <AlertCircle className="w-2.5 h-2.5" /> Reverted
+                </div>
+                <div className="text-[10px] font-mono text-red-300/60 leading-relaxed break-all">{error}</div>
+              </div>
             )}
           </div>
-
-          {result && (
-            <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/10 p-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-500 uppercase tracking-widest">
-                  <Check className="w-3 h-3" /> Output
-                </div>
-                <CopyButton text={result.extra ? `${result.decoded} (${result.extra})` : result.decoded} />
-              </div>
-              <div className="font-mono text-[11px] text-emerald-200/80 break-all">{result.decoded}</div>
-              {result.extra && (
-                <div className="mt-1 font-mono text-[10px] text-neutral-600">{result.extra}</div>
-              )}
-              {result.raw.length > 1 && (
-                <details className="mt-2">
-                  <summary className="text-[9px] text-neutral-700 cursor-pointer hover:text-neutral-500 transition-colors">raw felts</summary>
-                  <pre className="mt-1 text-[9px] font-mono text-neutral-700 break-all whitespace-pre-wrap">{JSON.stringify(result.raw, null, 2)}</pre>
-                </details>
-              )}
-            </div>
-          )}
-
-          {error && (
-            <div className="rounded-lg bg-red-500/5 border border-red-500/10 p-3">
-              <div className="flex items-center gap-1.5 text-[9px] font-bold text-red-500 uppercase tracking-widest mb-1.5">
-                <AlertCircle className="w-3 h-3" /> Reverted
-              </div>
-              <div className="text-[10px] font-mono text-red-300/70 leading-relaxed break-all">{error}</div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     );
   };
 
-  if (!effectiveAddress && !showCustomTarget) {
-    return (
-      <div className="-m-5 flex flex-col items-center justify-center gap-5 py-16 px-6">
-        <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center">
-          <Activity className="w-7 h-7 text-neutral-600" />
-        </div>
-        <div className="text-center space-y-2">
-          <p className="text-[13px] text-neutral-300 font-bold">No Contract Target</p>
-          <p className="text-[10px] text-neutral-600 leading-relaxed">
-            Deploy a contract from the Deploy tab, or load an existing one.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 w-full max-w-[220px]">
+  // ── wallet + network bar ──────────────────────────────────────────────────
+  const WalletNetworkBar = () => (
+    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50 bg-black/20 flex-shrink-0">
+      {/* Network toggle */}
+      {handleNetworkSwitch && (
+        <div className="flex items-center p-0.5 rounded-md bg-black/30 border border-border/50 text-[9px] font-bold uppercase tracking-wider flex-shrink-0">
           <button
+            onClick={() => handleNetworkSwitch("mainnet")}
+            className={clsx(
+              "px-2 py-1 rounded transition-all",
+              network === "mainnet" ? "bg-amber-500 text-black" : "text-muted-foreground hover:text-foreground"
+            )}
+          >Main</button>
+          <button
+            onClick={() => handleNetworkSwitch("sepolia")}
+            className={clsx(
+              "px-2 py-1 rounded transition-all",
+              network === "sepolia" ? "bg-emerald-500 text-black" : "text-muted-foreground hover:text-foreground"
+            )}
+          >Test</button>
+        </div>
+      )}
+
+      <div className="w-px h-4 bg-border/50 flex-shrink-0" />
+
+      {/* Wallet info */}
+      {walletAddress ? (
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.6)]" />
+            <span className={clsx(
+              "text-[10px] font-bold uppercase tracking-wider",
+              walletType === "privy" ? "text-amber-400/80" : "text-sky-400/80"
+            )}>
+              {walletType === "privy" ? "Privy · Gasless" : "Extension"}
+            </span>
+          </div>
+          <span className="font-mono text-[10px] text-foreground/60 truncate">
+            {walletAddress.slice(0, 10)}…{walletAddress.slice(-6)}
+          </span>
+          {/* Balance */}
+          <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+            <Zap className="w-3 h-3 text-amber-500 fill-amber-500/50" />
+            {isFetchingBalance ? (
+              <div className="w-10 h-3 bg-white/10 animate-pulse rounded" />
+            ) : (
+              <span className="text-[10px] font-mono text-foreground/70">{strkBalance ?? "—"} STRK</span>
+            )}
+            {fetchStrkBalance && walletAddress && (
+              <button
+                onClick={() => fetchStrkBalance(walletAddress)}
+                className="text-muted-foreground/30 hover:text-muted-foreground/70 transition-colors ml-0.5"
+                title="Refresh balance"
+              >
+                <RefreshCw className={clsx("w-3 h-3", isFetchingBalance && "animate-spin")} />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRequestWallet}
+          className="h-6 px-2.5 text-[9px] font-bold uppercase tracking-wider text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/5 gap-1.5"
+        >
+          <Wallet className="w-3 h-3" />Connect Wallet
+        </Button>
+      )}
+    </div>
+  );
+
+  // ── address bar ───────────────────────────────────────────────────────────
+  const AddressBar = () => (
+    <div className="flex-shrink-0 border-b border-border/50 bg-black/20">
+      {effectiveAddress ? (
+        <div className="px-3 py-2 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.6)]" />
+              <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
+                {useCustomTarget ? "External Contract" : "Deployed Contract"}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 px-1.5 text-[9px] text-muted-foreground/40 hover:text-amber-400 hover:bg-transparent gap-1"
+              onClick={() => setShowCustomTarget(!showCustomTarget)}
+            >
+              {showCustomTarget ? <X className="w-2.5 h-2.5" /> : <Plus className="w-2.5 h-2.5" />}
+              {showCustomTarget ? "Close" : "Change"}
+            </Button>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] text-foreground/70 flex-1 truncate" title={effectiveAddress}>
+              {effectiveAddress.slice(0, 16)}…{effectiveAddress.slice(-8)}
+            </span>
+            <Tooltip>
+              <TooltipTrigger>
+                <button onClick={copyAddress} className="text-muted-foreground/40 hover:text-foreground/70 transition-colors p-0.5">
+                  {copiedAddress ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Copy address</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger>
+                <a
+                  href={`${netConfig.voyager}/contract/${effectiveAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-0.5"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">View on Voyager</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      ) : (
+        <div className="px-3 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <AlertCircle className="w-3 h-3 text-amber-500/70" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-amber-500/70">No contract loaded</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-5 px-1.5 text-[9px] text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/5 gap-1"
             onClick={() => setShowCustomTarget(true)}
-            className="w-full py-2.5 rounded-xl border border-neutral-800 bg-neutral-900 text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:border-amber-500/30 hover:text-amber-400 transition-all flex items-center justify-center gap-2"
           >
-            <Plus className="w-3.5 h-3.5" /> Load External Contract
-          </button>
+            <Plus className="w-2.5 h-2.5" />Load
+          </Button>
+        </div>
+      )}
+
+      {/* Inline load form */}
+      {showCustomTarget && (
+        <div className="px-3 pb-3 pt-1 border-t border-border/40 bg-black/10 space-y-2.5 animate-in slide-in-from-top-1 duration-150">
+          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Load Contract</div>
+          <div>
+            <label className="text-[9px] text-muted-foreground/50 block mb-1">Address</label>
+            <input
+              value={customAddress}
+              onChange={e => setCustomAddress(e.target.value)}
+              placeholder="0x…"
+              className="w-full bg-black/40 border border-border/50 rounded-md px-2.5 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/40 text-foreground/80 placeholder:text-muted-foreground/30 transition-all"
+            />
+          </div>
+          <div>
+            <label className="text-[9px] text-muted-foreground/50 block mb-1">
+              ABI <span className="text-muted-foreground/30">(JSON array, optional)</span>
+            </label>
+            <textarea
+              value={customAbiText}
+              onChange={e => setCustomAbiText(e.target.value)}
+              placeholder={'[{"type":"function","name":"get",...}]'}
+              rows={3}
+              className="w-full bg-black/40 border border-border/50 rounded-md px-2.5 py-1.5 text-[10px] font-mono outline-none focus:border-amber-500/40 text-foreground/70 placeholder:text-muted-foreground/30 resize-none transition-all"
+            />
+            {customAbiError && <p className="text-[9px] text-red-400 mt-0.5">{customAbiError}</p>}
+            {parsedCustomAbi && !customAbiError && (
+              <p className="text-[9px] text-emerald-500/70 mt-0.5">✓ {parsedCustomAbi.length} entries parsed</p>
+            )}
+          </div>
           {recentDeployments.length > 0 && (
-            <div className="space-y-1.5 mt-1">
-              <div className="text-[9px] text-neutral-700 uppercase tracking-widest text-center">recent</div>
+            <div className="space-y-1">
+              <div className="text-[9px] text-muted-foreground/40 uppercase tracking-widest">Recent</div>
               {recentDeployments.slice(0, 3).map((d: ContractHistoryItem) => (
                 <button
                   key={d.id}
-                  onClick={() => {
-                    setCustomAddress(d.contractAddress);
-                    if (d.abi) setCustomAbiText(JSON.stringify(d.abi));
-                    setUseCustomTarget(true);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-900 bg-black/20 hover:border-neutral-700 transition-colors text-left"
+                  onClick={() => { setCustomAddress(d.contractAddress); if (d.abi) setCustomAbiText(JSON.stringify(d.abi)); }}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md border border-border/40 bg-black/20 hover:border-border/70 transition-colors text-left group"
                 >
-                  <Box className="w-3 h-3 flex-shrink-0 text-neutral-700" />
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] text-neutral-300 font-medium truncate">{d.name || "Contract"}</span>
-                    <span className="text-[9px] font-mono text-neutral-700 truncate">{d.contractAddress?.slice(0, 12)}…</span>
+                  <Box className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-500/50 flex-shrink-0 transition-colors" />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-[10px] text-foreground/70 font-medium truncate">{d.name || "Contract"}</span>
+                    <span className="text-[9px] font-mono text-muted-foreground/40 truncate">{d.contractAddress?.slice(0, 14)}…</span>
                   </div>
+                  <ChevronRight className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-500/50 flex-shrink-0 transition-colors" />
                 </button>
               ))}
             </div>
           )}
+          <div className="flex gap-2 pt-1">
+            <Button
+              size="sm"
+              className="flex-1 h-7 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-black hover:bg-amber-400"
+              disabled={!customAddress}
+              onClick={() => { if (customAddress) { setUseCustomTarget(true); setShowCustomTarget(false); setActiveSubTab("functions"); } }}
+            >
+              Load
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="flex-1 h-7 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground border border-border/50"
+              onClick={() => setShowCustomTarget(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab strip */}
+      <div className="flex h-8 border-t border-border/40 bg-black/10">
+        {(["functions", "log"] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveSubTab(tab)}
+            className={clsx(
+              "flex items-center gap-1.5 px-3 h-full text-[9px] font-bold uppercase tracking-widest relative transition-colors",
+              activeSubTab === tab
+                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-amber-500"
+                : "text-muted-foreground/40 hover:text-muted-foreground/70"
+            )}
+          >
+            {tab === "functions" ? <Zap className="w-2.5 h-2.5" /> : <Activity className="w-2.5 h-2.5" />}
+            {tab}
+            {tab === "log" && callLog.length > 0 && (
+              <Badge className="h-3.5 px-1 text-[8px] bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/15 ml-0.5">
+                {callLog.length}
+              </Badge>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── empty state ───────────────────────────────────────────────────────────
+  if (!effectiveAddress && !showCustomTarget) {
+    return (
+      <div className="flex flex-col h-full">
+        <WalletNetworkBar />
+        <AddressBar />
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <div className="w-12 h-12 rounded-xl bg-black/30 border border-border/50 flex items-center justify-center">
+            <Activity className="w-5 h-5 text-muted-foreground/30" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[12px] text-foreground/60 font-semibold">No Contract Loaded</p>
+            <p className="text-[10px] text-muted-foreground/40 leading-relaxed max-w-[200px]">
+              Deploy from the Deploy tab or load an existing contract address.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-[10px] font-bold uppercase tracking-wider border border-border/50 hover:border-amber-500/30 hover:text-amber-400 hover:bg-amber-500/5 gap-1.5"
+            onClick={() => setShowCustomTarget(true)}
+          >
+            <Plus className="w-3 h-3" />Load External Contract
+          </Button>
         </div>
       </div>
     );
   }
 
-  if (isFullscreen) {
+  // ── panel layout (sidebar) ────────────────────────────────────────────────
+  if (!isFullscreen) {
     return (
-      <div className="flex flex-col animate-in fade-in duration-500">
-        <div className="mb-12">
-          <div className="flex items-start justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-2xl shadow-amber-500/5">
-                  <Zap className="w-7 h-7 text-amber-500" />
+      <div className="flex flex-col h-full">
+        <WalletNetworkBar />
+        <AddressBar />
+        <ScrollArea className="flex-1">
+          {activeSubTab === "functions" ? (
+            <div className="p-3 space-y-4">
+              {externalFunctions.length === 0 && (
+                <div className="py-10 text-center">
+                  <p className="text-[10px] text-muted-foreground/30 font-mono italic">
+                    {effectiveAbi.length === 0
+                      ? "No ABI loaded — build first or paste an ABI."
+                      : "No external functions in ABI."}
+                  </p>
                 </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/70">Contract Dashboard</span>
-                    <div className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1">
-                      <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[8px] font-black uppercase text-emerald-500">Verified</span>
-                    </div>
-                  </div>
-                  <h2 className="text-3xl font-black text-white tracking-tight leading-none">{activeFileName || "Unnamed Contract"}</h2>
-                </div>
-              </div>
+              )}
 
-              {effectiveAddress && (
-                <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05] w-fit">
-                  <Globe className="w-3.5 h-3.5 text-neutral-600" />
-                  <span className="text-xs font-mono text-neutral-400">{effectiveAddress}</span>
-                  <div className="w-px h-3 bg-neutral-800" />
-                  <CopyButton text={effectiveAddress} label="Copy Address" />
+              {viewFunctions.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 px-0.5">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-500/60">Read</span>
+                    <div className="flex-1 h-px bg-emerald-500/10" />
+                    <span className="text-[8px] text-muted-foreground/30">{viewFunctions.length}</span>
+                  </div>
+                  {viewFunctions.map((fn: AbiEntry) => renderFnCard(fn, true))}
+                </div>
+              )}
+
+              {viewFunctions.length > 0 && writeFunctions.length > 0 && (
+                <Separator className="bg-border/30" />
+              )}
+
+              {writeFunctions.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 px-0.5">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-500/60">Write</span>
+                    <div className="flex-1 h-px bg-amber-500/10" />
+                    <span className="text-[8px] text-muted-foreground/30">{writeFunctions.length}</span>
+                  </div>
+                  {writeFunctions.map((fn: AbiEntry) => renderFnCard(fn, false))}
                 </div>
               )}
             </div>
-
-            <div className="flex flex-col items-end gap-3 text-right">
-              <button
-                onClick={() => setShowCustomTarget(!showCustomTarget)}
-                className={clsx(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest border",
-                  showCustomTarget ? "bg-amber-500 text-black border-amber-400" : "bg-white/[0.05] border-white/[0.1] text-neutral-300 hover:text-amber-500 hover:bg-white/[0.1]"
-                )}
-              >
-                <Plus className="w-4 h-4" />
-                Load External
-              </button>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900/50 border border-white/[0.05] text-amber-500 font-black text-[10px] uppercase tracking-wider">
-                <Sparkles className="w-3 h-3" />
-                Totally Gasless
-              </div>
-            </div>
-          </div>
-
-          {showCustomTarget && (
-            <div className="mt-12 p-8 rounded-3xl bg-[#080808]/80 border border-amber-500/20 backdrop-blur-2xl animate-in zoom-in-95 duration-200 shadow-2xl">
-              <div className="flex items-center justify-between mb-8 border-b border-white/[0.05] pb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-inner">
-                    <Globe className="w-6 h-6 text-amber-500" />
-                  </div>
-                  <div className="flex flex-col">
-                    <h3 className="text-xl font-bold text-white tracking-tight leading-none mb-1">Load Starknet Contract</h3>
-                    <p className="text-xs text-neutral-500">Provide a contract address and its ABI to generate the interface.</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowCustomTarget(false)}
-                  className="p-3 hover:bg-white/5 rounded-2xl transition-all text-neutral-600 hover:text-white"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-12 gap-10">
-                <div className="col-span-5 space-y-8">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-neutral-600 flex items-center gap-2">
-                      <LucideHash className="w-3.5 h-3.5" />
-                      Contract Address
-                    </label>
-                    <input
-                      value={customAddress}
-                      onChange={e => setCustomAddress(e.target.value)}
-                      placeholder="0x0123... (Starknet Address)"
-                      className="w-full bg-black/60 border border-white/[0.08] rounded-2xl px-5 py-4 text-sm font-mono outline-none focus:border-amber-500/50 text-neutral-200 placeholder:text-neutral-800 transition-all shadow-inner"
-                    />
-                  </div>
-
-                  <div className="p-5 rounded-2xl bg-amber-500/[0.02] border border-amber-500/10">
-                    <div className="flex items-center gap-2 text-amber-500/80 mb-2">
-                      <Zap className="w-3.5 h-3.5" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-center">Recent Contracts</span>
-                    </div>
-                    {recentDeployments.length > 0 ? (
-                      <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-                        {recentDeployments.slice(0, 5).map((d: ContractHistoryItem) => (
-                          <button
-                            key={d.id}
-                            onClick={() => setCustomAddress(d.contractAddress)}
-                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all group"
-                          >
-                            <div className="flex flex-col gap-1">
-                              <div className="text-[11px] text-white font-bold group-hover:text-amber-500 transition-colors">{d.name}</div>
-                              <div className="font-mono text-[9px] text-neutral-600 block truncate max-w-[140px]">{d.contractAddress}</div>
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                              <span className="text-[9px] text-neutral-800 font-bold uppercase tracking-tighter">{d.createdAt}</span>
-                              <ChevronRight className="w-3 h-3 text-neutral-800 group-hover:text-amber-500 transition-colors" />
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-neutral-700 italic">No recent local deployments found.</p>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      if (customAddress) {
-                        setUseCustomTarget(true);
-                        setShowCustomTarget(false);
-                      }
-                    }}
-                    disabled={!customAddress}
-                    className="w-full py-4 rounded-2xl bg-amber-500 text-black font-black text-xs uppercase tracking-widest hover:bg-amber-400 transition-all shadow-[0_4px_20px_rgba(245,158,11,0.15)] disabled:opacity-30 disabled:cursor-not-allowed group"
-                  >
-                    <span className="group-hover:scale-105 transition-transform inline-block">Load Deployed Interface</span>
-                  </button>
-                </div>
-
-                <div className="col-span-7 flex flex-col gap-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-neutral-600 flex items-center gap-2">
-                    <Code2 className="w-3.5 h-3.5" />
-                    ABI Interface (JSON Array)
-                  </label>
-                  <div className="flex-1 min-h-[300px] relative">
-                    <textarea
-                      value={customAbiText}
-                      onChange={e => setCustomAbiText(e.target.value)}
-                      placeholder={'[\n  {\n    "type": "function",\n    "name": "balanceOf",\n    ...\n  }\n]'}
-                      className="absolute inset-0 w-full h-full bg-black/60 border border-white/[0.08] rounded-3xl px-6 py-6 text-xs font-mono outline-none focus:border-amber-500/50 text-neutral-400 placeholder:text-neutral-800 resize-none transition-all shadow-inner custom-scrollbar"
-                    />
-                  </div>
-                  {customAbiError && (
-                    <div className="px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold">
-                      Error: {customAbiError}
-                    </div>
-                  )}
-                  {parsedCustomAbi && !customAbiError && (
-                    <div className="px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-bold">
-                      Interface Verified: {parsedCustomAbi.length} dynamic methods found.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-10 grid grid-cols-3 gap-6">
-            <div className="col-span-2 p-6 rounded-2xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/[0.08] backdrop-blur-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 transform translate-x-4 -translate-y-4 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity">
-                <Info className="w-32 h-32" />
-              </div>
-              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500 mb-3 flex items-center gap-2">
-                <Cpu className="w-3 h-3" />
-                AI Contract Insight
-              </h3>
-              <p className="text-neutral-300 text-sm leading-relaxed max-w-2xl">
-                This contract, <span className="text-amber-500 font-bold">{activeFileName}</span>, implements
-                {viewFunctions.length > 0 ? ` ${viewFunctions.length} query methods` : ""}
-                {writeFunctions.length > 0 ? ` and ${writeFunctions.length} state-changing operations` : ""}.
-                It follows the standard Starknet component pattern with embedded entrypoints for maximum gas efficiency and modularity on {netConfig.label}.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex flex-col justify-center">
-              <div className="text-[10px] font-black uppercase tracking-widest text-neutral-700 mb-1 leading-none">Status</div>
-              <div className="text-xl font-bold text-neutral-300 flex items-center gap-2 uppercase tracking-tighter">
-                {contractAddress && !useCustomTarget ? "On-Chain Active" : "Local Prototype"}
-              </div>
-              <div className="mt-4 flex items-center gap-4">
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-bold text-neutral-600 uppercase">Methods</span>
-                  <span className="text-lg font-black text-white">{externalFunctions.length}</span>
-                </div>
-                <div className="w-px h-6 bg-neutral-900" />
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-bold text-neutral-600 uppercase">ABI Size</span>
-                  <span className="text-lg font-black text-white">{(JSON.stringify(effectiveAbi).length / 1024).toFixed(1)} KB</span>
-                </div>
-              </div>
-              {(!contractAddress && !useCustomTarget) && (
-                <div className="mt-6 flex items-center gap-2 text-[10px] text-amber-500 font-bold uppercase tracking-widest bg-amber-500/5 px-3 py-2 rounded-lg border border-amber-500/10">
-                  <ChevronRight className="w-3.5 h-3.5" />
-                  Check Deploy Panel
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-12 gap-8">
-          <div className="col-span-8 flex flex-col gap-6">
-            <div className="flex items-center justify-between border-b border-white/[0.05] pb-2">
-              <div className="flex items-center gap-6">
-                <button onClick={() => setActiveSubTab("functions")} className={clsx("text-xs font-black uppercase tracking-widest pb-2 border-b-2 transition-all", activeSubTab === "functions" ? "text-amber-500 border-amber-500" : "text-neutral-600 border-transparent hover:text-neutral-400")}>Interface</button>
-                <button onClick={() => setActiveSubTab("log")} className={clsx("text-xs font-black uppercase tracking-widest pb-2 border-b-2 transition-all", activeSubTab === "log" ? "text-amber-500 border-amber-500" : "text-neutral-600 border-transparent hover:text-neutral-400")}>Activity</button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-4">
-              {activeSubTab === "functions" ? (
-                <div className="grid grid-cols-2 gap-4">
-                  {externalFunctions.map((fn) => renderFnCard(fn, fn.state_mutability === "view"))}
+          ) : (
+            <div className="p-3 space-y-1.5">
+              {callLog.length === 0 ? (
+                <div className="py-12 text-center">
+                  <p className="text-[10px] text-muted-foreground/30 font-mono italic">No calls yet.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {callLog.map(entry => (
-                    <div key={entry.id} className="p-4 rounded-xl border border-white/[0.03] bg-white/[0.01] flex items-center justify-between group hover:bg-white/[0.02] transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className={clsx("w-2 h-2 rounded-full", entry.error ? "bg-red-500" : "bg-emerald-500")} />
-                        <div>
-                          <div className="text-xs font-mono text-neutral-300">{entry.fnName}</div>
-                          <div className="text-[10px] text-neutral-600 font-mono mt-0.5">{new Date(entry.timestamp).toLocaleString()}</div>
-                        </div>
+                callLog.map(entry => (
+                  <div key={entry.id} className="p-2.5 rounded-lg border border-border/40 bg-black/20 space-y-1 hover:border-border/60 transition-colors group">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <div className={clsx(
+                          "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                          entry.error ? "bg-red-500" : entry.confirmed ? "bg-emerald-500" : entry.txHash ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                        )} />
+                        <span className="text-[11px] font-mono font-medium text-foreground/75 truncate">{entry.fnName}</span>
+                        <Badge className={clsx(
+                          "text-[7px] px-1 py-0 h-3.5",
+                          entry.type === "read"
+                            ? "bg-emerald-500/8 text-emerald-500/70 border-emerald-500/15"
+                            : "bg-amber-500/8 text-amber-500/70 border-amber-500/15"
+                        )}>
+                          {entry.type}
+                        </Badge>
                       </div>
-                      <div className="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {entry.txHash && <a href={`${netConfig.voyager}/tx/${entry.txHash}`} target="_blank" className="text-[10px] uppercase font-black text-neutral-500 hover:text-amber-500 transition-colors">Voyager ↗</a>}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {entry.txHash && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <a
+                                href={`${netConfig.voyager}/tx/${entry.txHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-0.5"
+                              >
+                                <ArrowUpRight className="w-3 h-3" />
+                              </a>
+                            </TooltipTrigger>
+                            <TooltipContent className="text-[9px]">View tx on Voyager</TooltipContent>
+                          </Tooltip>
+                        )}
                         <CopyButton text={entry.result || entry.error || ""} />
                       </div>
                     </div>
+                    <div className="flex items-center gap-1 text-[9px] text-muted-foreground/30">
+                      <Clock className="w-2.5 h-2.5" />
+                      {new Date(entry.timestamp).toLocaleTimeString()}
+                    </div>
+                    {entry.result && (
+                      <div className="font-mono text-[9px] text-emerald-400/60 truncate">{entry.result}</div>
+                    )}
+                    {entry.error && (
+                      <div className="font-mono text-[9px] text-red-400/60 truncate">{entry.error.slice(0, 80)}</div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+    );
+  }
+
+  // ── fullscreen layout ─────────────────────────────────────────────────────
+  return (
+    <div className="flex flex-col h-full animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="mb-6 flex items-start justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+            <Zap className="w-6 h-6 text-amber-500" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-amber-500/60">Contract Interface</span>
+              {effectiveAddress && (
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[7px] font-bold uppercase text-emerald-500">Live</span>
+                </div>
+              )}
+            </div>
+            <h2 className="text-2xl font-bold text-foreground tracking-tight">{activeFileName || "Unnamed Contract"}</h2>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {effectiveAddress && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/30 border border-border/50">
+              <span className="text-[10px] font-mono text-muted-foreground/70 truncate max-w-[180px]">{effectiveAddress}</span>
+              <Tooltip>
+                <TooltipTrigger>
+                  <button onClick={copyAddress} className="text-muted-foreground/40 hover:text-foreground/70 transition-colors">
+                    {copiedAddress ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="text-[10px]">Copy address</TooltipContent>
+              </Tooltip>
+              <a href={`${netConfig.voyager}/contract/${effectiveAddress}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground/40 hover:text-amber-400 transition-colors">
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className={clsx(
+              "h-8 text-[10px] font-bold uppercase tracking-wider border gap-1.5",
+              showCustomTarget
+                ? "bg-amber-500 text-black border-amber-400 hover:bg-amber-400"
+                : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+            )}
+            onClick={() => setShowCustomTarget(!showCustomTarget)}
+          >
+            {showCustomTarget ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+            {showCustomTarget ? "Close" : "Load External"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Wallet + Network bar (fullscreen) */}
+      <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-black/20 border border-border/50">
+        {/* Network */}
+        {handleNetworkSwitch && (
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/40">Network</span>
+            <div className="flex items-center p-0.5 rounded-md bg-black/30 border border-border/50 text-[9px] font-bold uppercase tracking-wider">
+              <button
+                onClick={() => handleNetworkSwitch("mainnet")}
+                className={clsx("px-2.5 py-1 rounded transition-all", network === "mainnet" ? "bg-amber-500 text-black" : "text-muted-foreground hover:text-foreground")}
+              >Mainnet</button>
+              <button
+                onClick={() => handleNetworkSwitch("sepolia")}
+                className={clsx("px-2.5 py-1 rounded transition-all", network === "sepolia" ? "bg-emerald-500 text-black" : "text-muted-foreground hover:text-foreground")}
+              >Sepolia</button>
+            </div>
+          </div>
+        )}
+
+        <div className="w-px h-5 bg-border/50" />
+
+        {/* Wallet */}
+        {walletAddress ? (
+          <div className="flex items-center gap-4 flex-1">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.6)]" />
+              <span className={clsx("text-[10px] font-bold uppercase tracking-wider", walletType === "privy" ? "text-amber-400/80" : "text-sky-400/80")}>
+                {walletType === "privy" ? "Privy · Gasless" : "Extension Wallet"}
+              </span>
+              <span className="font-mono text-[11px] text-foreground/60">{walletAddress.slice(0, 14)}…{walletAddress.slice(-8)}</span>
+            </div>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <div className="w-5 h-5 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <Zap className="w-2.5 h-2.5 text-amber-500 fill-amber-500/60" />
+              </div>
+              {isFetchingBalance ? (
+                <div className="w-14 h-3.5 bg-white/10 animate-pulse rounded" />
+              ) : (
+                <span className="text-[12px] font-mono font-semibold text-foreground/80">{strkBalance ?? "—"} <span className="text-[10px] text-muted-foreground/50 font-normal">STRK</span></span>
+              )}
+              {fetchStrkBalance && (
+                <button
+                  onClick={() => fetchStrkBalance(walletAddress)}
+                  className="p-1 rounded hover:bg-white/5 text-muted-foreground/30 hover:text-muted-foreground/70 transition-colors"
+                  title="Refresh balance"
+                >
+                  <RefreshCw className={clsx("w-3 h-3", isFetchingBalance && "animate-spin")} />
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRequestWallet}
+            className="h-7 text-[10px] font-bold uppercase tracking-wider text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/5 gap-1.5"
+          >
+            <Wallet className="w-3.5 h-3.5" />Connect Wallet to Execute Write Functions
+          </Button>
+        )}
+      </div>
+
+      {/* Load external form (fullscreen) */}
+      {showCustomTarget && (
+        <div className="mb-6 p-5 rounded-xl bg-black/30 border border-amber-500/15 backdrop-blur-sm animate-in slide-in-from-top-2 duration-200">
+          <div className="grid grid-cols-2 gap-5">
+            <div className="space-y-2">
+              <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
+                <LucideHash className="w-3 h-3" />Contract Address
+              </label>
+              <input
+                value={customAddress}
+                onChange={e => setCustomAddress(e.target.value)}
+                placeholder="0x0123… (Starknet Address)"
+                className="w-full bg-black/40 border border-border/50 rounded-lg px-3 py-2.5 text-sm font-mono outline-none focus:border-amber-500/40 text-foreground/80 placeholder:text-muted-foreground/30 transition-all"
+              />
+              {recentDeployments.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <div className="text-[8px] text-muted-foreground/30 uppercase tracking-widest">Recent deployments</div>
+                  {recentDeployments.slice(0, 4).map((d: ContractHistoryItem) => (
+                    <button
+                      key={d.id}
+                      onClick={() => setCustomAddress(d.contractAddress)}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-black/20 border border-border/40 hover:border-border/70 hover:bg-black/30 transition-all group text-left"
+                    >
+                      <Box className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-500/60 flex-shrink-0 transition-colors" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] font-medium text-foreground/70 truncate group-hover:text-foreground/90 transition-colors">{d.name || "Contract"}</div>
+                        <div className="font-mono text-[8px] text-muted-foreground/40 truncate">{d.contractAddress}</div>
+                      </div>
+                      <ChevronRight className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-400 flex-shrink-0 transition-colors" />
+                    </button>
                   ))}
                 </div>
               )}
             </div>
-          </div>
-
-          <div className="col-span-4 space-y-6">
-            <div className="p-6 rounded-2xl bg-neutral-900/50 border border-white/[0.05]">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-6 flex items-center gap-2">
-                <Shield className="w-3.5 h-3.5" />
-                Security & Metadata
-              </h4>
-              <div className="space-y-4">
-                <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-black/40 border border-white/[0.03]">
-                  <span className="text-[8px] font-black uppercase text-neutral-700">Account Status</span>
-                  <div className="flex items-center gap-2">
-                    <div className={clsx("w-1.5 h-1.5 rounded-full", account ? "bg-emerald-500" : "bg-red-500")} />
-                    <span className="text-[11px] font-mono text-neutral-400">{account ? account.address.slice(0, 10) + "..." : "Not Connected"}</span>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-black/40 border border-white/[0.03]">
-                  <span className="text-[8px] font-black uppercase text-neutral-700">Compiler Version</span>
-                  <span className="text-[11px] font-mono text-neutral-400">Scarb 2.8.4</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-amber-500/[0.03] border border-amber-500/10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-[0.05]">
-                <Zap className="w-12 h-12 text-amber-500" />
-              </div>
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-500/80 mb-2">Power Mode</h4>
-              <p className="text-[11px] text-neutral-500 leading-relaxed italic">
-                Gasless execution enabled via Starkzap Paymaster. Your builder credits are covering this session.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Panel layout
-  return (
-    <div className="-m-5 flex flex-col" style={{ minHeight: 0 }}>
-      <div className="flex-shrink-0 border-b border-neutral-900">
-        {effectiveAddress ? (
-          <div className="px-4 py-3 bg-black/30 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
-                <span className="text-[8px] font-black uppercase tracking-[0.25em] text-neutral-600">
-                  {useCustomTarget ? "Custom Target" : "Deployed Contract"}
-                </span>
-              </div>
-              <button
-                onClick={() => setShowCustomTarget(!showCustomTarget)}
-                className="text-[9px] text-neutral-700 hover:text-amber-500 transition-colors flex items-center gap-1"
-              >
-                <Edit2 className="w-2.5 h-2.5" />
-                <span>Change</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] text-neutral-300 flex-1 truncate" title={effectiveAddress}>
-                {effectiveAddress.slice(0, 14)}…{effectiveAddress.slice(-8)}
-              </span>
-              <CopyButton text={effectiveAddress} />
-              <a
-                href={`${netConfig.voyager}/contract/${effectiveAddress}`}
-                target="_blank" rel="noopener noreferrer"
-                className="text-[9px] text-neutral-700 hover:text-amber-500 transition-colors"
-                title="View on Voyager"
-              >↗</a>
-            </div>
-          </div>
-        ) : (
-          <div className="px-4 py-2.5 bg-amber-500/5 flex items-center gap-2">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-amber-500">No address set</span>
-          </div>
-        )}
-
-        {showCustomTarget && (
-          <div className="px-4 py-4 bg-[#080808] border-t border-neutral-900 space-y-3">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Load Contract</div>
-            <div>
-              <label className="text-[9px] text-neutral-600 block mb-1">Address</label>
-              <input
-                value={customAddress}
-                onChange={e => setCustomAddress(e.target.value)}
-                placeholder="0x…"
-                className="w-full bg-black/50 border border-neutral-800 rounded-lg px-3 py-2 text-[11px] font-mono outline-none focus:border-amber-500/30 text-neutral-300 placeholder:text-neutral-700 transition-all"
-              />
-            </div>
-            <div>
-              <label className="text-[9px] text-neutral-600 block mb-1">ABI <span className="text-neutral-700">(paste JSON array)</span></label>
+            <div className="space-y-2">
+              <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
+                <Code2 className="w-3 h-3" />ABI (JSON Array)
+              </label>
               <textarea
                 value={customAbiText}
                 onChange={e => setCustomAbiText(e.target.value)}
-                placeholder={'[{"type":"function","name":"get",...}]'}
-                rows={3}
-                className="w-full bg-black/50 border border-neutral-800 rounded-lg px-3 py-2 text-[10px] font-mono outline-none focus:border-amber-500/30 text-neutral-300 placeholder:text-neutral-700 resize-none transition-all"
+                placeholder={'[\n  {\n    "type": "function",\n    "name": "balanceOf",\n    ...\n  }\n]'}
+                className="w-full h-[140px] bg-black/40 border border-border/50 rounded-lg px-3 py-2.5 text-xs font-mono outline-none focus:border-amber-500/40 text-foreground/70 placeholder:text-muted-foreground/25 resize-none transition-all"
               />
-              {customAbiError && <p className="text-[9px] text-red-400 mt-1">{customAbiError}</p>}
+              {customAbiError && <p className="text-[9px] text-red-400">{customAbiError}</p>}
               {parsedCustomAbi && !customAbiError && (
-                <p className="text-[9px] text-emerald-600 mt-1">✓ {parsedCustomAbi.length} ABI entries parsed</p>
+                <p className="text-[9px] text-emerald-500/70">✓ {parsedCustomAbi.length} ABI entries parsed</p>
               )}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  if (customAddress) {
-                    setUseCustomTarget(true);
-                    setShowCustomTarget(false);
-                    setActiveSubTab("functions");
-                  }
-                }}
-                disabled={!customAddress}
-                className="flex-1 py-2 rounded-lg bg-amber-500 text-black font-bold text-[10px] uppercase tracking-widest hover:bg-amber-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Load
-              </button>
-              <button
-                onClick={() => setShowCustomTarget(false)}
-                className="flex-1 py-2 rounded-lg border border-neutral-800 text-neutral-500 font-bold text-[10px] uppercase tracking-widest hover:border-neutral-700 transition-all"
-              >
-                Cancel
-              </button>
             </div>
           </div>
-        )}
-
-        <div className="flex h-8 bg-black/20">
-          {(["functions", "log"] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveSubTab(tab)}
-              className={clsx(
-                "px-4 h-full text-[9px] font-black uppercase tracking-widest relative transition-colors",
-                activeSubTab === tab
-                  ? "text-neutral-200 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-amber-500"
-                  : "text-neutral-600 hover:text-neutral-400"
-              )}
+          <div className="flex gap-2 mt-4 justify-end">
+            <Button size="sm" variant="ghost" className="h-8 text-[10px] border border-border/50" onClick={() => setShowCustomTarget(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              className="h-8 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-black hover:bg-amber-400 px-5"
+              disabled={!customAddress}
+              onClick={() => { if (customAddress) { setUseCustomTarget(true); setShowCustomTarget(false); } }}
             >
-              {tab}
-            </button>
-          ))}
+              Load Interface
+            </Button>
+          </div>
         </div>
+      )}
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        {[
+          { label: "Read", value: viewFunctions.length, color: "text-emerald-400" },
+          { label: "Write", value: writeFunctions.length, color: "text-amber-400" },
+          { label: "Calls", value: callLog.length, color: "text-sky-400" },
+        ].map(stat => (
+          <div key={stat.label} className="px-4 py-3 rounded-lg bg-black/20 border border-border/40">
+            <div className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-1">{stat.label}</div>
+            <div className={clsx("text-xl font-bold", stat.color)}>{stat.value}</div>
+          </div>
+        ))}
       </div>
 
-      <div className="overflow-y-auto flex-1">
-        {activeSubTab === "functions" ? (
-          <div className="p-4 space-y-5">
-            {externalFunctions.length === 0 && (
-              <div className="text-center py-10 text-[10px] text-neutral-700 font-mono italic">
-                {effectiveAbi.length === 0
-                  ? "No ABI loaded — build the contract or paste an ABI above."
-                  : "No external functions detected in the ABI."}
-              </div>
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-border/40 mb-5">
+        {(["functions", "log"] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveSubTab(tab)}
+            className={clsx(
+              "flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 -mb-px transition-colors",
+              activeSubTab === tab
+                ? "text-amber-500 border-amber-500"
+                : "text-muted-foreground/40 border-transparent hover:text-muted-foreground/70"
             )}
+          >
+            {tab === "functions" ? <Zap className="w-3 h-3" /> : <Activity className="w-3 h-3" />}
+            {tab}
+            {tab === "log" && callLog.length > 0 && (
+              <Badge className="h-4 px-1.5 text-[8px] bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/15">
+                {callLog.length}
+              </Badge>
+            )}
+          </button>
+        ))}
+      </div>
 
-            {viewFunctions.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-px flex-1 bg-emerald-900/40" />
-                  <span className="text-[9px] font-black uppercase text-neutral-600 tracking-[0.2em]">Read</span>
-                  <div className="h-px flex-1 bg-emerald-900/40" />
+      {/* Content */}
+      {activeSubTab === "functions" ? (
+        <div className="grid grid-cols-2 gap-4">
+          {viewFunctions.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-500/60">Read</span>
+                <div className="flex-1 h-px bg-emerald-500/10" />
+                <span className="text-[8px] text-muted-foreground/30">{viewFunctions.length} functions</span>
+              </div>
+              {viewFunctions.map((fn: AbiEntry) => renderFnCard(fn, true))}
+            </div>
+          )}
+          {writeFunctions.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-500/60">Write</span>
+                <div className="flex-1 h-px bg-amber-500/10" />
+                <span className="text-[8px] text-muted-foreground/30">{writeFunctions.length} functions</span>
+              </div>
+              {writeFunctions.map((fn: AbiEntry) => renderFnCard(fn, false))}
+            </div>
+          )}
+          {externalFunctions.length === 0 && (
+            <div className="col-span-2 py-16 text-center text-[11px] text-muted-foreground/30 font-mono italic">
+              {effectiveAbi.length === 0 ? "No ABI loaded — build the contract first." : "No external functions in ABI."}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {callLog.length === 0 ? (
+            <div className="py-16 text-center text-[11px] text-muted-foreground/30 font-mono italic">No calls yet.</div>
+          ) : (
+            callLog.map(entry => (
+              <div key={entry.id} className="flex items-center gap-4 p-3.5 rounded-lg border border-border/40 bg-black/20 hover:bg-black/30 hover:border-border/60 transition-all group">
+                <div className={clsx(
+                  "w-2 h-2 rounded-full flex-shrink-0",
+                  entry.error ? "bg-red-500" : entry.confirmed ? "bg-emerald-500" : entry.txHash ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                )} />
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12px] font-mono font-medium text-foreground/80">{entry.fnName}</span>
+                    <Badge className={clsx(
+                      "text-[8px] px-1.5",
+                      entry.type === "read"
+                        ? "bg-emerald-500/8 text-emerald-500/70 border-emerald-500/20"
+                        : "bg-amber-500/8 text-amber-500/70 border-amber-500/20"
+                    )}>
+                      {entry.type}
+                    </Badge>
+                  </div>
+                  {entry.result && <div className="text-[10px] font-mono text-emerald-400/60 truncate">{entry.result}</div>}
+                  {entry.error && <div className="text-[10px] font-mono text-red-400/60 truncate">{entry.error.slice(0, 100)}</div>}
                 </div>
-                {viewFunctions.map((fn: AbiEntry) => renderFnCard(fn, true))}
-              </div>
-            )}
-
-            {writeFunctions.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-px flex-1 bg-amber-900/40" />
-                  <span className="text-[9px] font-black uppercase text-neutral-600 tracking-[0.2em]">Write</span>
-                  <div className="h-px flex-1 bg-amber-900/40" />
-                </div>
-                {writeFunctions.map((fn: AbiEntry) => renderFnCard(fn, false))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-4 space-y-2">
-            {callLog.length === 0 ? (
-              <div className="text-center py-14 text-[10px] text-neutral-700 font-mono italic">
-                No calls yet.
-              </div>
-            ) : (
-              callLog.map(entry => (
-                <div key={entry.id} className="p-3 rounded-lg border border-neutral-900 bg-black/20 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold font-mono text-neutral-200 truncate">{entry.fnName}</span>
-                    <span className="text-[9px] font-mono text-neutral-700">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-1 text-[9px] text-muted-foreground/30">
+                    <Clock className="w-2.5 h-2.5" />
+                    {new Date(entry.timestamp).toLocaleTimeString()}
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {entry.txHash && (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <a
+                            href={`${netConfig.voyager}/tx/${entry.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-1"
+                          >
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          </a>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-[10px]">View on Voyager</TooltipContent>
+                      </Tooltip>
+                    )}
+                    <CopyButton text={entry.result || entry.error || ""} />
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
