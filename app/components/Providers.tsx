@@ -1,9 +1,11 @@
 "use client";
 
 import { PrivyProvider } from "@privy-io/react-auth";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export function UnzapProviders({ children }: { children: React.ReactNode }) {
   return (
+    <TooltipProvider delayDuration={300}>
     <PrivyProvider
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
       config={{
@@ -20,5 +22,6 @@ export function UnzapProviders({ children }: { children: React.ReactNode }) {
     >
       {children}
     </PrivyProvider>
+    </TooltipProvider>
   );
 }

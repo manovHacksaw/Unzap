@@ -15,6 +15,9 @@ import {
   Box,
 } from "lucide-react";
 import { useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type {
   DeployStatus,
   DeployStep,
@@ -62,7 +65,7 @@ function HashValue({ value, href }: { value: string; href?: string }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-600">
+    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
       {children}
     </span>
   );
@@ -160,10 +163,11 @@ export function DeployPanel({
     : "Build your contract to continue";
 
   return (
-    <div className="flex flex-col h-full bg-[#0e0e0e] overflow-y-auto">
+    <ScrollArea className="h-full">
+    <div className="flex flex-col min-h-full bg-transparent">
 
       {/* ── Contract Header ──────────────────────────────────────────── */}
-      <div className="px-5 pt-6 pb-5 border-b border-neutral-900/60">
+      <div className="px-5 pt-6 pb-5 border-b border-border/50">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-bold text-white truncate">
@@ -175,22 +179,22 @@ export function DeployPanel({
           </div>
 
           {/* Status badge */}
-          <div className={clsx(
-            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wide flex-shrink-0",
+          <Badge className={clsx(
+            "flex-shrink-0 text-[9px] font-bold uppercase tracking-wide",
             isDeployed
-              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/10"
               : isDeclared
-              ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
+              ? "bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/10"
               : isBuilt
-              ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-              : "bg-neutral-800 text-neutral-600 border border-neutral-700/50"
+              ? "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/10"
+              : "bg-white/5 text-muted-foreground border-border/50 hover:bg-white/5"
           )}>
             <span className={clsx(
-              "w-1.5 h-1.5 rounded-full",
+              "w-1.5 h-1.5 rounded-full mr-1",
               isDeployed ? "bg-emerald-500" : isDeclared ? "bg-sky-400" : isBuilt ? "bg-amber-500" : "bg-neutral-600"
             )} />
             {isDeployed ? "Deployed" : isDeclared ? "Declared" : isBuilt ? "Built" : "Idle"}
-          </div>
+          </Badge>
         </div>
 
         {/* Contract metadata — only when built */}
@@ -215,7 +219,7 @@ export function DeployPanel({
       </div>
 
       {/* ── Environment ──────────────────────────────────────────────── */}
-      <div className="px-5 py-5 space-y-4 border-b border-neutral-900/60">
+      <div className="px-5 py-5 space-y-4 border-b border-border/50">
         <SectionLabel>Environment</SectionLabel>
 
         {/* Network */}
@@ -227,7 +231,7 @@ export function DeployPanel({
             )} />
             <span className="text-[11px] text-neutral-300 font-medium">{netConfig.label}</span>
           </div>
-          <div className="flex items-center p-0.5 rounded-lg bg-neutral-900 border border-neutral-800 overflow-hidden text-[9px] font-bold uppercase tracking-wider">
+          <div className="flex items-center p-0.5 rounded-lg bg-black/30 border border-border/60 overflow-hidden text-[9px] font-bold uppercase tracking-wider">
             <button
               onClick={() => handleNetworkSwitch("mainnet")}
               className={clsx(
@@ -257,28 +261,30 @@ export function DeployPanel({
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
                   <span
-                    className="font-mono text-[11px] text-neutral-300 cursor-copy select-all"
+                    className="font-mono text-[11px] text-foreground/80 cursor-copy select-all"
                     onClick={() => navigator.clipboard.writeText(walletAddress)}
                     title="Click to copy"
                   >
                     {walletAddress.slice(0, 10)}…{walletAddress.slice(-6)}
                   </span>
                 </div>
-                <p className="text-[9px] text-neutral-600 mt-0.5 pl-3">
+                <p className="text-[9px] text-muted-foreground mt-0.5 pl-3">
                   {walletType === "privy" ? "Privy Protocol" : "External wallet"}
                 </p>
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={disconnectWallet}
-                className="p-1.5 rounded-lg hover:bg-red-500/10 text-neutral-700 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/20"
+                className="h-7 w-7 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
                 title="Disconnect"
               >
                 <X className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             </div>
 
             {/* Balance */}
-            <div className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#131313] border border-neutral-800/60">
+            <div className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-black/40 border border-border/50">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center">
                   <Zap className="w-3 h-3 fill-amber-500 text-amber-500" />
@@ -319,7 +325,7 @@ export function DeployPanel({
       </div>
 
       {/* ── Deployment State ─────────────────────────────────────────── */}
-      <div className="px-5 py-5 space-y-4 border-b border-neutral-900/60">
+      <div className="px-5 py-5 space-y-4 border-b border-border/50">
         <SectionLabel>Deployment State</SectionLabel>
 
         <div className="space-y-3">
@@ -332,7 +338,7 @@ export function DeployPanel({
             )}
           </div>
 
-          <div className="h-px bg-neutral-900" />
+          <div className="h-px bg-black/30" />
 
           <div>
             <p className="text-[10px] text-neutral-500">Contract Address</p>
@@ -347,7 +353,7 @@ export function DeployPanel({
 
       {/* ── Constructor Inputs ───────────────────────────────────────── */}
       {deployStatus === "declared" && ctorInputs.length > 0 && (
-        <div className="px-5 py-5 space-y-3 border-b border-neutral-900/60">
+        <div className="px-5 py-5 space-y-3 border-b border-border/50">
           <SectionLabel>Constructor</SectionLabel>
           {ctorInputs.map((inp) => (
             <div key={inp.name}>
@@ -361,7 +367,7 @@ export function DeployPanel({
                   setConstructorInputs((prev) => ({ ...prev, [inp.name]: e.target.value }))
                 }
                 placeholder="0x… or decimal"
-                className="w-full mt-1 bg-transparent border-b border-neutral-800 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/50 text-neutral-300 placeholder:text-neutral-800 transition-colors"
+                className="w-full mt-1 bg-transparent border-b border-border/60 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/50 text-neutral-300 placeholder:text-neutral-800 transition-colors"
               />
             </div>
           ))}
@@ -382,7 +388,7 @@ export function DeployPanel({
               value={salt}
               onChange={(e) => setSalt(e.target.value)}
               placeholder="0"
-              className="w-full mt-1 bg-transparent border-b border-neutral-800 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/50 text-neutral-300 placeholder:text-neutral-800 transition-colors"
+              className="w-full mt-1 bg-transparent border-b border-border/60 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/50 text-neutral-300 placeholder:text-neutral-800 transition-colors"
             />
           </div>
         </div>
@@ -390,17 +396,17 @@ export function DeployPanel({
 
       {/* ── Execution Pipeline ───────────────────────────────────────── */}
       {deploySteps.length > 0 && (
-        <div className="px-5 py-5 border-b border-neutral-900/60">
+        <div className="px-5 py-5 border-b border-border/50">
           <div className="flex items-center gap-2 mb-5">
             <Activity className="w-3 h-3 text-neutral-600" />
             <SectionLabel>Pipeline</SectionLabel>
           </div>
           <div className="relative pl-1 space-y-6">
-            <div className="absolute left-[7px] top-2 bottom-2 w-px bg-neutral-900" />
+            <div className="absolute left-[7px] top-2 bottom-2 w-px bg-black/30" />
             {deploySteps.map((step) => (
               <div key={step.id} className="relative pl-7">
                 <div className={clsx(
-                  "absolute left-0 top-1 w-3 h-3 rounded-full border-2 border-[#0e0e0e] transition-all duration-500",
+                  "absolute left-0 top-1 w-3 h-3 rounded-full border-2 border-black/60 transition-all duration-500",
                   step.status === "done"
                     ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
                     : step.status === "active"
@@ -420,7 +426,7 @@ export function DeployPanel({
                   {step.label}
                 </p>
                 {step.detail && (
-                  <p className="text-[9px] font-mono text-neutral-600 mt-0.5 bg-neutral-900/50 px-1.5 py-0.5 rounded w-fit border border-neutral-800/50">
+                  <p className="text-[9px] font-mono text-neutral-600 mt-0.5 bg-black/20 px-1.5 py-0.5 rounded w-fit border border-border/40">
                     {step.detail}
                   </p>
                 )}
@@ -453,7 +459,7 @@ export function DeployPanel({
                 "w-full py-3 rounded-xl text-[12px] font-bold tracking-wide transition-all flex items-center justify-center gap-2",
                 isBuilt && starknetAccount
                   ? "bg-amber-500 text-black hover:bg-amber-400 shadow-[0_0_24px_rgba(245,158,11,0.2)] hover:shadow-[0_0_32px_rgba(245,158,11,0.3)]"
-                  : "bg-neutral-900 text-neutral-700 cursor-not-allowed"
+                  : "bg-white/5 text-muted-foreground cursor-not-allowed"
               )}
             >
               <Box className="w-4 h-4" />
@@ -462,7 +468,7 @@ export function DeployPanel({
             <button
               disabled
               title="Declare first to get class hash"
-              className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-neutral-700 bg-neutral-900/50 border border-neutral-800/50 cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-neutral-700 bg-black/20 border border-border/40 cursor-not-allowed flex items-center justify-center gap-2"
             >
               Deploy
               <span className="text-[9px] text-neutral-800 font-normal">· declare first</span>
@@ -494,7 +500,7 @@ export function DeployPanel({
             </button>
             <button
               onClick={onReset}
-              className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-neutral-600 hover:text-neutral-400 bg-transparent border border-neutral-800/60 hover:border-neutral-700 transition-all flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-neutral-600 hover:text-neutral-400 bg-transparent border border-border/50 hover:border-neutral-700 transition-all flex items-center justify-center gap-1.5"
             >
               Re-declare
             </button>
@@ -521,7 +527,7 @@ export function DeployPanel({
             </div>
             <button
               onClick={onReset}
-              className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-neutral-600 hover:text-neutral-400 bg-transparent border border-neutral-800/60 hover:border-neutral-700 transition-all"
+              className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-neutral-600 hover:text-neutral-400 bg-transparent border border-border/50 hover:border-neutral-700 transition-all"
             >
               Reset & Redeploy
             </button>
@@ -529,5 +535,6 @@ export function DeployPanel({
         )}
       </div>
     </div>
+    </ScrollArea>
   );
 }

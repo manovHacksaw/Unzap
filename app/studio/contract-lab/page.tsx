@@ -29,8 +29,16 @@ import {
   Edit2,
   FilePlus,
   FolderPlus,
+  Play,
+  XCircle,
+  FileText,
+  Terminal,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import {
   COMPILER_URL,
@@ -859,33 +867,59 @@ export default function StarkzapIDE() {
 
   return (
     <div className="flex flex-col h-full bg-[#050505] text-neutral-400 font-sans overflow-hidden">
-      {/* ── TOP WORKFLOW CONTROL ── */}
-      <div className="flex items-center justify-between h-10 px-4 border-b border-neutral-900 bg-[#0a0a0a] flex-shrink-0 z-20">
-        <div className="flex items-center gap-8 h-full">
-          <div className="flex items-center gap-2.5 group cursor-pointer pr-4 border-r border-neutral-900/50 h-6">
-            <Zap className={clsx("w-3.5 h-3.5 transition-colors", accentColor, settings.theme !== 'mono' && "fill-current")} />
-            <span className="text-[10px] font-black tracking-[0.2em] text-white uppercase opacity-80 group-hover:opacity-100 transition-opacity">Starkzap Studio</span>
+      {/* ── TOP BAR ── */}
+      <div className="flex items-center justify-between h-12 px-4 border-b border-border/50 bg-black/40 backdrop-blur-xl flex-shrink-0 z-20">
+        {/* Left: traffic lights + logo */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-neutral-700" />
+            <div className="w-3 h-3 rounded-full bg-neutral-600" />
+            <div className={clsx("w-3 h-3 rounded-full opacity-70", accentBg)} />
+          </div>
+          <div className="w-px h-4 bg-border" />
+          <div className="flex items-center gap-2">
+            <Zap className={clsx("w-3.5 h-3.5", accentColor, settings.theme !== 'mono' && "fill-current")} />
+            <span className="text-sm font-semibold text-foreground/90">Starkzap Studio</span>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className={clsx(
-            "h-6 px-2.5 rounded-md border text-[9px] font-mono flex items-center gap-2 transition-all",
-            buildStatus === "success" ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80" :
-              buildStatus === "error" ? "border-red-500/20 bg-red-500/5 text-red-400/80" :
-                buildStatus === "building" ? "border-amber-500/20 bg-amber-500/5 text-amber-400/80" :
-                  "border-neutral-800/50 bg-neutral-900/30 text-neutral-600"
-          )}>
-            <div className={clsx("w-1 h-1 rounded-full",
-              buildStatus === "success" ? "bg-emerald-500" :
-                buildStatus === "error" ? "bg-red-500" :
-                  buildStatus === "building" ? "bg-amber-500 animate-pulse" : "bg-neutral-700"
-            )} />
-            {buildStatus === "idle" ? "IDLE" : buildStatus.toUpperCase()}
-          </div>
-          <div className="h-4 w-[1px] bg-neutral-800" />
-          <button onClick={() => setIsSettingsOpen(true)} className="p-1.5 hover:bg-white/5 rounded transition-colors text-neutral-600 hover:text-neutral-400">
-            <Settings className="w-3.5 h-3.5" />
-          </button>
+        {/* Right: build button + status badge + settings */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 hover:bg-white/10 text-foreground/70 hover:text-foreground"
+            onClick={handleBuild}
+            disabled={buildStatus === "building"}
+          >
+            {buildStatus === "building"
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Play className="w-4 h-4" />}
+            Build
+          </Button>
+          {buildStatus === "success" && (
+            <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/15">
+              <CheckCircle2 className="w-3 h-3 mr-1" />Build Success
+            </Badge>
+          )}
+          {buildStatus === "error" && (
+            <Badge className="bg-red-500/15 text-red-400 border-red-500/25 hover:bg-red-500/15">
+              <XCircle className="w-3 h-3 mr-1" />Build Failed
+            </Badge>
+          )}
+          {buildStatus === "building" && (
+            <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/15">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-1.5 inline-block" />Building
+            </Badge>
+          )}
+          <div className="w-px h-4 bg-border mx-1" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 hover:bg-white/10 text-foreground/50 hover:text-foreground"
+            onClick={() => setIsSettingsOpen(true)}
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
@@ -893,7 +927,7 @@ export default function StarkzapIDE() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* ── ACTIVITY BAR ── */}
-        <div className="flex flex-col items-center w-12 border-r border-neutral-900 bg-[#0a0a0a] py-4 gap-4 flex-shrink-0">
+        <div className="flex flex-col items-center w-12 border-r border-border/50 bg-black/20 backdrop-blur-sm py-4 gap-4 flex-shrink-0">
           <ActivityIcon icon={Files} active={activeSidebarTab === "explorer"} onClick={() => { setActiveSidebarTab("explorer"); setIsSidebarOpen(true); setIsRightPanelOpen(true); }} />
           <ActivityIcon icon={Zap} active={activeSidebarTab === "interact"} onClick={() => { setActiveSidebarTab("interact"); setIsSidebarOpen(true); }} />
           <ActivityIcon icon={Search} active={activeSidebarTab === "search"} onClick={() => { setActiveSidebarTab("search"); setIsSidebarOpen(true); setIsRightPanelOpen(true); }} />
@@ -909,7 +943,7 @@ export default function StarkzapIDE() {
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 260, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              className="flex flex-col border-r border-neutral-900 bg-[#0d0d0d] overflow-hidden flex-shrink-0"
+              className="flex flex-col border-r border-border/50 bg-black/20 backdrop-blur-sm overflow-hidden flex-shrink-0"
             >
               <PanelHeader title={activeSidebarTab === "explorer" ? "Explorer" : activeSidebarTab}>
                 <div className="flex items-center gap-0.5">
@@ -919,7 +953,7 @@ export default function StarkzapIDE() {
                 </div>
               </PanelHeader>
 
-              <div className="flex-1 overflow-y-auto" onContextMenu={(e) => openContextMenu(e, null)}>
+              <ScrollArea className="flex-1" onContextMenu={(e) => openContextMenu(e, null)}>
                 {activeSidebarTab === "explorer" && (
                   <div className="py-2">
                     <div className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase text-neutral-500 mb-1 group cursor-pointer hover:bg-white/[0.02]">
@@ -1169,14 +1203,14 @@ export default function StarkzapIDE() {
                     })()}
                   </div>
                 )}
-              </div>
+              </ScrollArea>
             </motion.div>
           )}
         </AnimatePresence>
 
         {contextMenu && (
           <div
-            className="fixed z-50 min-w-[180px] rounded-lg border border-neutral-800 bg-[#111111] p-1 shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
+            className="fixed z-50 min-w-[180px] rounded-lg border border-border/60 bg-black/80 backdrop-blur-xl p-1 shadow-[0_16px_40px_rgba(0,0,0,0.7)]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1199,6 +1233,8 @@ export default function StarkzapIDE() {
                   contractAddress={contractAddress}
                   abi={(activeFileId && buildOutputsByFile[activeFileId]) ? buildOutputsByFile[activeFileId].abi : []}
                   account={starknetAccount}
+                  szWallet={szWallet}
+                  walletType={walletType}
                   addLog={addLog}
                   provider={sdkRef.current?.getProvider() as unknown as ProviderInterface | null}
                   netConfig={getNetworkConfig(network)}
@@ -1213,12 +1249,11 @@ export default function StarkzapIDE() {
           ) : (
             <>
               {/* Tabs */}
-              <div className="flex h-9 bg-[#0d0d0d] border-b border-neutral-900 overflow-x-auto flex-shrink-0 no-scrollbar">
+              <div className="flex h-10 bg-black/20 backdrop-blur-sm border-b border-border/50 overflow-x-auto flex-shrink-0 no-scrollbar items-end px-2">
                 {[activeFile].filter(Boolean).map(f => (
-                  <div key={f.id} className={clsx("flex items-center px-4 border-r border-neutral-900 bg-[#050505] min-w-[160px] relative after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px]", `after:${accentBg}`)}>
-                    <FileCode className={clsx("w-3.5 h-3.5 mr-2", f.readonly ? "text-sky-400" : accentColor)} />
-                    <span className="text-xs text-neutral-300 font-medium truncate">{f.filename}</span>
-                    <button className="ml-auto p-1 hover:bg-white/10 rounded transition-colors opacity-0 group-hover:opacity-100"><X className="w-3 h-3" /></button>
+                  <div key={f.id} className="px-3 py-1.5 bg-black/40 rounded-t-md border-t border-x border-border/50 flex items-center gap-2 min-w-[140px]">
+                    <FileCode className={clsx("w-3.5 h-3.5 flex-shrink-0", f.readonly ? "text-sky-400" : accentColor)} />
+                    <span className="text-xs text-foreground/90 font-medium truncate">{f.filename}</span>
                   </div>
                 ))}
               </div>
@@ -1290,31 +1325,38 @@ export default function StarkzapIDE() {
               {/* Resize Handle */}
               <div
                 onMouseDown={() => setIsResizingTerminal(true)}
-                className={clsx("relative h-2 flex-shrink-0 cursor-row-resize border-t border-neutral-900 bg-[#0b0b0b] group", isResizingTerminal && "bg-amber-500/10")}
-              >
-                <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-neutral-800 transition-colors group-hover:bg-amber-500/40" />
-                <div className="absolute left-1/2 top-1/2 h-1 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full bg-neutral-700 transition-colors group-hover:bg-amber-500/60" />
-              </div>
+                className={clsx("h-1 flex-shrink-0 cursor-row-resize transition-colors border-t border-border/30", isResizingTerminal ? "bg-amber-500/40" : "bg-border/20 hover:bg-amber-500/30")}
+              />
 
               {/* BOTTOM PANEL */}
-              <div className="flex flex-col border-t border-neutral-900 bg-[#0d0d0d] flex-shrink-0" style={{ height: terminalHeight }}>
-                <div className="flex items-center h-9 px-4 border-b border-neutral-900 justify-between">
-                  <div className="flex items-center h-full gap-1">
-                    <TabButton active={activeBottomTab === "terminal"} onClick={() => setActiveBottomTab("terminal")} label="Terminal" />
-                    <TabButton active={activeBottomTab === "problems"} onClick={() => setActiveBottomTab("problems")} label="Problems" badge={problemCount || undefined} />
+              <div className="flex flex-col border-t border-border/50 bg-black/30 backdrop-blur-sm flex-shrink-0" style={{ height: terminalHeight }}>
+                <div className="flex items-center h-9 px-3 border-b border-border/50 justify-between bg-black/20">
+                  <div className="flex items-center h-full gap-0.5">
+                    <Button variant="ghost" size="sm" onClick={() => setActiveBottomTab("terminal")} className={clsx("h-7 px-2.5 text-[11px] gap-1.5 rounded-sm transition-colors", activeBottomTab === "terminal" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-white/5")}>
+                      <Terminal className="w-3 h-3" />Terminal
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setActiveBottomTab("problems")} className={clsx("h-7 px-2.5 text-[11px] gap-1.5 rounded-sm transition-colors", activeBottomTab === "problems" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-white/5")}>
+                      <AlertCircle className="w-3 h-3" />Problems
+                      {problemCount > 0 && <Badge className="ml-0.5 h-4 px-1 text-[9px] bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/20">{problemCount}</Badge>}
+                    </Button>
                   </div>
-                  <button onClick={() => setTerminalLogs([])} className="p-1.5 hover:bg-white/5 rounded text-neutral-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <Button variant="ghost" size="icon" onClick={() => setTerminalLogs([])} className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-white/5"><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
 
-                <div className="flex-1 overflow-auto bg-[#050505] p-4 font-mono text-[11px] leading-relaxed">
+                <div className="flex-1 overflow-auto p-3 font-mono text-[11px] leading-relaxed">
                   {activeBottomTab === "terminal" && (
-                    <div className="space-y-1 selection:bg-amber-500/20">
-                      {terminalLogs.map((log) => (
-                        <div key={log.slice(0, 50)} className={clsx("flex gap-2 group", log.includes("failed") ? "text-red-400" : log.includes("success") ? "text-emerald-400" : "text-neutral-500")}>
-                          <span className="text-neutral-700 select-none shrink-0">$</span>
-                          <div className="flex-1 break-all cursor-text">{renderLogLine(log)}</div>
-                        </div>
-                      ))}
+                    <div className="space-y-0.5 selection:bg-amber-500/20">
+                      {terminalLogs.map((log) => {
+                        const isError = log.includes("failed") || log.includes("error") || log.includes("Error");
+                        const isSuccess = log.includes("success") || log.includes("Success") || log.includes("deployed") || log.includes("declared");
+                        const isWarning = log.includes("warning") || log.includes("Note:");
+                        return (
+                          <div key={log.slice(0, 50)} className={clsx("flex gap-2 group py-0.5", isError ? "text-red-400" : isSuccess ? "text-emerald-400" : isWarning ? "text-amber-400/80" : "text-neutral-500")}>
+                            {isError ? <XCircle className="w-3 h-3 shrink-0 mt-0.5 text-red-500/70" /> : isSuccess ? <CheckCircle2 className="w-3 h-3 shrink-0 mt-0.5 text-emerald-500/70" /> : isWarning ? <AlertCircle className="w-3 h-3 shrink-0 mt-0.5 text-amber-500/70" /> : <FileText className="w-3 h-3 shrink-0 mt-0.5 text-neutral-700" />}
+                            <div className="flex-1 break-all cursor-text">{renderLogLine(log)}</div>
+                          </div>
+                        );
+                      })}
                       {compilerOutput && (
                         <pre className="mt-4 whitespace-pre-wrap rounded border border-neutral-900 bg-black/30 p-3 text-neutral-400 cursor-text">
                           {renderLogLine(compilerOutput)}
@@ -1388,15 +1430,13 @@ export default function StarkzapIDE() {
               exit={{ width: 0, opacity: 0 }}
               className="flex flex-shrink-0 overflow-hidden"
             >
-              <div onMouseDown={() => setIsResizingRightPanel(true)} className={clsx("relative w-2 cursor-col-resize border-l border-neutral-900 bg-[#0b0b0b] group", isResizingRightPanel && "bg-amber-500/10")}>
-                <div className="absolute left-1/2 top-1/2 h-16 w-px -translate-x-1/2 -translate-y-1/2 bg-neutral-900 transition-colors group-hover:bg-neutral-700" />
-              </div>
-              <div className="flex flex-col h-full flex-1 border-l border-neutral-900 bg-[#0e0e0e] overflow-hidden">
-                <div className="flex items-center h-10 px-5 bg-black/30 border-b border-neutral-900/50 flex-shrink-0 justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">Deploy</span>
+              <div onMouseDown={() => setIsResizingRightPanel(true)} className={clsx("relative w-1 flex-shrink-0 cursor-col-resize transition-colors", isResizingRightPanel ? "bg-amber-500/40" : "bg-border/40 hover:bg-amber-500/50")} />
+              <div className="flex flex-col h-full flex-1 border-l border-border/50 bg-black/20 backdrop-blur-sm overflow-hidden">
+                <div className="flex items-center h-10 px-5 bg-black/40 backdrop-blur-xl border-b border-border/50 flex-shrink-0 justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/60">Deploy</span>
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                    <span className="text-[9px] text-neutral-600 uppercase tracking-wider">Live</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Live</span>
                   </div>
                 </div>
                 <DeployPanel
@@ -1462,7 +1502,7 @@ export default function StarkzapIDE() {
       />
 
       {/* ── STATUS BAR ── */}
-      <div className="flex items-center justify-between h-7 px-3 text-[10px] border-t border-neutral-900 bg-[#0a0a0a] text-neutral-600 select-none transition-colors">
+      <div className="flex items-center justify-between h-7 px-3 text-[10px] border-t border-border/50 bg-black/40 backdrop-blur-xl text-muted-foreground select-none transition-colors">
         <div className="flex items-center gap-4 h-full">
           <div className="flex items-center gap-1.5 h-full px-2 hover:bg-white/5 cursor-pointer transition-colors group" onClick={() => handleNetworkSwitch(network === "mainnet" ? "sepolia" : "mainnet")} title={`Switch to ${network === "mainnet" ? "Sepolia testnet" : "Mainnet"}`}>
             <Box className={clsx("w-3 h-3 group-hover:scale-110 transition-transform", accentColor)} />
