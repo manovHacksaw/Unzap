@@ -63,16 +63,9 @@ function Particles({ isReacting }: { isReacting?: boolean }) {
   useFrame((state, delta) => {
     if (meshRef.current) {
       // Constant rotation + extra when reacting
-      const speed = isReacting ? 0.8 : 0.18;
+      const speed = isReacting ? 0.3 : 0.08;
       meshRef.current.rotation.y += delta * speed;
-      meshRef.current.rotation.x += delta * 0.03;
-
-      if (isReacting) {
-        const pulse = 1 + Math.sin(state.clock.elapsedTime * 15) * 0.05;
-        meshRef.current.scale.set(pulse, pulse, pulse);
-      } else {
-        meshRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
-      }
+      meshRef.current.rotation.x += delta * 0.01;
     }
   });
 

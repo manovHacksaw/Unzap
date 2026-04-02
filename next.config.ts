@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
   transpilePackages: ["starkzap", "ethers"],
   productionBrowserSourceMaps: false,
   // Turbopack config — used by `next dev`
