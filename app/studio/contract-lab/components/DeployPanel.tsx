@@ -185,13 +185,6 @@ export function DeployPanel({
     ? "Declare contract to register class hash"
     : "Build your contract to continue";
 
-  const walletModeLabel =
-    walletType === "privy"
-      ? "Privy gasless flow"
-      : walletType === "extension"
-      ? "Self-managed extension"
-      : "Connect a wallet";
-
   return (
     <ScrollArea className="h-full">
     <div ref={scrollRef} className="flex flex-col min-h-full bg-transparent">
@@ -375,7 +368,7 @@ export function DeployPanel({
             </div>
 
             <p className="text-[10px] text-neutral-700 leading-relaxed">
-              Requires STRK for fees · gasless via AVNU
+              Declare can use the studio sponsor wallet. Privy deploy and invoke can be sponsored via AVNU.
             </p>
           </div>
         ) : (

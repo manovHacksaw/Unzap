@@ -62,13 +62,14 @@ trait IVoting<TContractState> {
 #[starknet::contract]
 mod Voting {
     use starknet::{ContractAddress, get_caller_address};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
     #[storage]
     struct Storage {
         admin: ContractAddress,
-        voters: LegacyMap<ContractAddress, bool>,
-        votes: LegacyMap<u64, u64>,
-        has_voted: LegacyMap<(ContractAddress, u64), bool>,
+        voters: Map<ContractAddress, bool>,
+        votes: Map<u64, u64>,
+        has_voted: Map<(ContractAddress, u64), bool>,
     }
 
     #[constructor]
@@ -79,14 +80,14 @@ mod Voting {
     #[abi(embed_v0)]
     impl VotingImpl of super::IVoting<ContractState> {
         fn add_voter(ref self: ContractState, voter: ContractAddress) {
-            assert(get_caller_address() == self.admin.read(), 'Only admin can add voters');
+            assert(get_caller_address() == self.admin.read(), 'not admin');
             self.voters.write(voter, true);
         }
 
         fn cast_vote(ref self: ContractState, proposal_id: u64) {
             let caller = get_caller_address();
-            assert(self.voters.read(caller), 'Caller is not a registered voter');
-            assert(!self.has_voted.read((caller, proposal_id)), 'Already voted for this proposal');
+            assert(self.voters.read(caller), 'not voter');
+            assert(!self.has_voted.read((caller, proposal_id)), 'dup vote');
 
             let current_votes = self.votes.read(proposal_id);
             self.votes.write(proposal_id, current_votes + 1);
@@ -127,6 +128,7 @@ trait IERC20<TContractState> {
 #[starknet::contract]
 mod ERC20 {
     use starknet::{ContractAddress, get_caller_address};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
     #[storage]
     struct Storage {
@@ -134,7 +136,7 @@ mod ERC20 {
         symbol: felt252,
         decimals: u8,
         total_supply: u256,
-        balances: LegacyMap<ContractAddress, u256>,
+        balances: Map<ContractAddress, u256>,
     }
 
     #[constructor]
@@ -198,13 +200,14 @@ trait IERC721<TContractState> {
 #[starknet::contract]
 mod MyNFT {
     use starknet::{ContractAddress, get_caller_address};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
     #[storage]
     struct Storage {
         name: felt252,
         symbol: felt252,
-        owners: LegacyMap<u256, ContractAddress>,
-        balances: LegacyMap<ContractAddress, u256>,
+        owners: Map<u256, ContractAddress>,
+        balances: Map<ContractAddress, u256>,
     }
 
     #[constructor]
@@ -231,6 +234,186 @@ mod MyNFT {
 
             self.owners.write(token_id, to);
             self.balances.write(to, self.balances.read(to) + 1);
+        }
+    }
+}
+`,
+  },
+  {
+    id: "template-distributor",
+    name: "Multi-Asset Distributor",
+    description: "Owner-managed treasury template for sending ERC20 tokens, STRK, and NFTs to one or many recipient addresses.",
+    difficulty: "Pro",
+    filename: "asset_distributor.cairo",
+    iconName: "Coins",
+    sourceCode: `use starknet::ContractAddress;
+
+#[derive(Drop, Serde, Copy)]
+struct TokenTransfer {
+    recipient: ContractAddress,
+    amount: u256,
+}
+
+#[derive(Drop, Serde, Copy)]
+struct NftTransfer {
+    collection: ContractAddress,
+    recipient: ContractAddress,
+    token_id: u256,
+}
+
+#[starknet::interface]
+trait IERC20<TContractState> {
+    fn transfer(ref self: TContractState, recipient: ContractAddress, amount: u256) -> bool;
+}
+
+#[starknet::interface]
+trait IERC721<TContractState> {
+    fn transfer_from(
+        ref self: TContractState,
+        from: ContractAddress,
+        to: ContractAddress,
+        token_id: u256,
+    );
+}
+
+#[starknet::interface]
+trait IAssetDistributor<TContractState> {
+    fn owner(self: @TContractState) -> ContractAddress;
+    fn strk_token(self: @TContractState) -> ContractAddress;
+    fn set_strk_token(ref self: TContractState, token: ContractAddress);
+    fn send_erc20(ref self: TContractState, token: ContractAddress, recipient: ContractAddress, amount: u256);
+    fn batch_send_erc20(ref self: TContractState, token: ContractAddress, transfers: Array<TokenTransfer>);
+    fn send_strk(ref self: TContractState, recipient: ContractAddress, amount: u256);
+    fn batch_send_strk(ref self: TContractState, transfers: Array<TokenTransfer>);
+    fn send_nft(ref self: TContractState, collection: ContractAddress, recipient: ContractAddress, token_id: u256);
+    fn batch_send_nfts(ref self: TContractState, transfers: Array<NftTransfer>);
+}
+
+#[starknet::contract]
+mod AssetDistributor {
+    use core::array::ArrayTrait;
+    use super::{
+        IERC20Dispatcher, IERC20DispatcherTrait, IERC721Dispatcher, IERC721DispatcherTrait,
+        NftTransfer, TokenTransfer,
+    };
+    use starknet::{ContractAddress, get_caller_address, get_contract_address};
+
+    #[storage]
+    struct Storage {
+        owner: ContractAddress,
+        strk_token: ContractAddress,
+    }
+
+    #[constructor]
+    fn constructor(ref self: ContractState, owner: ContractAddress, strk_token: ContractAddress) {
+        self.owner.write(owner);
+        self.strk_token.write(strk_token);
+    }
+
+    #[abi(embed_v0)]
+    impl AssetDistributorImpl of super::IAssetDistributor<ContractState> {
+        fn owner(self: @ContractState) -> ContractAddress {
+            self.owner.read()
+        }
+
+        fn strk_token(self: @ContractState) -> ContractAddress {
+            self.strk_token.read()
+        }
+
+        fn set_strk_token(ref self: ContractState, token: ContractAddress) {
+            self.assert_owner();
+            assert(!token.is_zero(), 'Invalid STRK');
+            self.strk_token.write(token);
+        }
+
+        fn send_erc20(ref self: ContractState, token: ContractAddress, recipient: ContractAddress, amount: u256) {
+            self.assert_owner();
+            self.transfer_erc20(token, recipient, amount);
+        }
+
+        fn batch_send_erc20(ref self: ContractState, token: ContractAddress, transfers: Array<TokenTransfer>) {
+            self.assert_owner();
+
+            let mut remaining = transfers;
+            loop {
+                match remaining.pop_front() {
+                    Option::Some(transfer) => {
+                        self.transfer_erc20(token, transfer.recipient, transfer.amount);
+                    },
+                    Option::None => {
+                        break;
+                    },
+                };
+            };
+        }
+
+        fn send_strk(ref self: ContractState, recipient: ContractAddress, amount: u256) {
+            self.assert_owner();
+            self.transfer_erc20(self.strk_token.read(), recipient, amount);
+        }
+
+        fn batch_send_strk(ref self: ContractState, transfers: Array<TokenTransfer>) {
+            self.assert_owner();
+
+            let token = self.strk_token.read();
+            let mut remaining = transfers;
+            loop {
+                match remaining.pop_front() {
+                    Option::Some(transfer) => {
+                        self.transfer_erc20(token, transfer.recipient, transfer.amount);
+                    },
+                    Option::None => {
+                        break;
+                    },
+                };
+            };
+        }
+
+        fn send_nft(ref self: ContractState, collection: ContractAddress, recipient: ContractAddress, token_id: u256) {
+            self.assert_owner();
+            self.transfer_nft(collection, recipient, token_id);
+        }
+
+        fn batch_send_nfts(ref self: ContractState, transfers: Array<NftTransfer>) {
+            self.assert_owner();
+
+            let mut remaining = transfers;
+            loop {
+                match remaining.pop_front() {
+                    Option::Some(transfer) => {
+                        self.transfer_nft(transfer.collection, transfer.recipient, transfer.token_id);
+                    },
+                    Option::None => {
+                        break;
+                    },
+                };
+            };
+        }
+    }
+
+    #[generate_trait]
+    impl InternalFunctions of InternalFunctionsTrait {
+        fn assert_owner(self: @ContractState) {
+            assert(get_caller_address() == self.owner.read(), 'Only owner');
+        }
+
+        // Send tokens already held by this contract.
+        fn transfer_erc20(ref self: ContractState, token: ContractAddress, recipient: ContractAddress, amount: u256) {
+            assert(!token.is_zero(), 'Invalid token');
+            assert(!recipient.is_zero(), 'Invalid recipient');
+
+            let token_dispatcher = IERC20Dispatcher { contract_address: token };
+            let success = token_dispatcher.transfer(recipient, amount);
+            assert(success, 'ERC20 failed');
+        }
+
+        // Send NFTs already owned by this contract.
+        fn transfer_nft(ref self: ContractState, collection: ContractAddress, recipient: ContractAddress, token_id: u256) {
+            assert(!collection.is_zero(), 'Invalid NFT');
+            assert(!recipient.is_zero(), 'Invalid recipient');
+
+            let collection_dispatcher = IERC721Dispatcher { contract_address: collection };
+            collection_dispatcher.transfer_from(get_contract_address(), recipient, token_id);
         }
     }
 }

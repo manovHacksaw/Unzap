@@ -84,7 +84,6 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { InteractPanel } from "./components/InteractPanel";
 import { DeployPanel } from "./components/DeployPanel";
 import { ToastViewport } from "./components/ToastViewport";
-import { TemplatesPanel } from "./components/TemplatesPanel";
 import { CONTRACT_TEMPLATES, type ContractTemplate } from "./templates";
 
 export default function StarkzapIDE() {
@@ -505,26 +504,34 @@ export default function StarkzapIDE() {
     });
   }, [addLog, getUniqueFilename, pushToast]);
 
+  const readStrkBalance = useCallback(async (provider: ProviderInterface, address: string) => {
+    const result = await provider.callContract({
+      contractAddress: STRK_TOKEN,
+      entrypoint: "balanceOf",
+      calldata: [address],
+    });
+    const low = BigInt(result[0] ?? "0x0");
+    const high = BigInt(result[1] ?? "0x0");
+    return low + (high << BigInt(128));
+  }, []);
+
+  const formatStrkAmount = useCallback((raw: bigint) => {
+    return (Number(raw) / 1e18).toFixed(4);
+  }, []);
+
   const fetchStrkBalance = useCallback(async (address: string) => {
     if (!sdkRef.current) return;
     setIsFetchingBalance(true);
     try {
       const provider = sdkRef.current.getProvider();
-      const result = await provider.callContract({
-        contractAddress: STRK_TOKEN,
-        entrypoint: "balanceOf",
-        calldata: [address],
-      });
-      const low = BigInt(result[0] ?? "0x0");
-      const high = BigInt(result[1] ?? "0x0");
-      const raw = low + high * (BigInt(2) ** BigInt(128));
-      setStrkBalance((Number(raw) / 1e18).toFixed(4));
+      const raw = await readStrkBalance(provider, address);
+      setStrkBalance(formatStrkAmount(raw));
     } catch {
       setStrkBalance(null);
     } finally {
       setIsFetchingBalance(false);
     }
-  }, []);
+  }, [formatStrkAmount, readStrkBalance]);
 
   const fetchDualBalances = useCallback(async (address: string) => {
     const mainnetCfg = getNetworkConfig("mainnet");
@@ -535,15 +542,8 @@ export default function StarkzapIDE() {
 
     const fetchBal = async (prov: RpcProvider) => {
       try {
-        const res = await prov.callContract({
-          contractAddress: STRK_TOKEN,
-          entrypoint: "balanceOf",
-          calldata: [address],
-        });
-        const low = BigInt(res[0] ?? 0);
-        const high = BigInt(res[1] ?? 0);
-        const val = low + (high << BigInt(128));
-        return (Number(val) / 1e18).toFixed(4);
+        const raw = await readStrkBalance(prov, address);
+        return formatStrkAmount(raw);
       } catch { return "0.0000"; }
     };
 
@@ -552,7 +552,7 @@ export default function StarkzapIDE() {
     setSepoliaBalance(sep);
     // sync current balance too
     setStrkBalance(network === "mainnet" ? main : sep);
-  }, [network]);
+  }, [formatStrkAmount, network, readStrkBalance]);
 
   type WalletConnectOptions = {
     silent?: boolean;
@@ -825,23 +825,16 @@ export default function StarkzapIDE() {
   const TX_TIMEOUT_MS = network === "mainnet" ? 300_000 : 120_000;
   const TX_TIMEOUT_LABEL = network === "mainnet" ? "5 minutes" : "2 minutes";
   const waitForTx = useCallback(async (txHash: string, ms = TX_TIMEOUT_MS) => {
-    const account = starknetAccount as Account;
+    const provider = (sdkRef.current?.getProvider() ?? starknetAccount) as ProviderInterface | Account | null;
+    if (!provider) throw new Error("No provider available to watch the transaction.");
+
     return Promise.race([
-      account.waitForTransaction(txHash, { retryInterval: 5000 }),
+      provider.waitForTransaction(txHash, { retryInterval: 5000 }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
     ]);
   }, [starknetAccount, TX_TIMEOUT_MS]);
 
   const handleDeclare = async () => {
-    if (!starknetAccount) {
-      setShowAuthModal(true);
-      pushToast({
-        tone: "warning",
-        title: "Connect a wallet first",
-        description: "A wallet is required before you can declare this contract.",
-      });
-      return;
-    }
     if (!activeBuildData) {
       addLog("Build the contract first (Ctrl+S).");
       pushToast({
@@ -853,14 +846,9 @@ export default function StarkzapIDE() {
     }
     if (deployStatus !== "idle") return;
 
-    if (walletType === "privy" && szWallet) {
-      const isDeployed = await szWallet.isDeployed();
-      if (!isDeployed) { setShowDeployAccountPrompt(true); return; }
-    }
-
     const steps: DeployStep[] = [
-      { id: "check", label: "Checking wallet", status: "idle" },
-      { id: "sign", label: "Signing declare tx", status: "idle" },
+      { id: "check", label: "Preparing declare", status: "idle" },
+      { id: "sign", label: "Submitting declare", status: "idle" },
       { id: "broadcast", label: `Confirmed on ${netConfig.label}`, status: "idle" },
       { id: "confirm", label: "Class hash ready", status: "idle" },
     ];
@@ -871,42 +859,98 @@ export default function StarkzapIDE() {
 
     try {
       setDeployStep("check", "active");
-      addLog(`Using wallet: ${walletAddress.slice(0, 14)}...`);
-      setDeployStep("check", "done");
+      if (walletAddress) {
+        addLog(`Fallback wallet available: ${walletAddress.slice(0, 14)}...`);
+        setDeployStep("check", "done", "wallet ready");
+      } else {
+        addLog("No user wallet connected. Trying the studio sponsor first.");
+        setDeployStep("check", "done", "studio sponsor");
+      }
       setDeployStep("sign", "active");
-      addLog("Attempting gasless declaration via studio paymaster...");
-      
+      addLog("Attempting studio-sponsored declaration...");
+
       let declareResult: { transaction_hash: string; class_hash: string };
       let isAlreadyDeclared = false;
+      let declareSource: "studio" | "local" | "existing" = "studio";
 
       try {
         const res = await fetch("/api/declare", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            sierra: activeBuildData.sierra, 
+          body: JSON.stringify({
+            sierra: activeBuildData.sierra,
             casm: activeBuildData.casm,
-            network: network 
+            network,
           }),
         });
         const data = await res.json();
-        
+
         if (res.ok) {
           declareResult = {
             transaction_hash: data.txHash || "",
             class_hash: data.classHash
           };
           isAlreadyDeclared = !!data.alreadyDeclared;
+          declareSource = isAlreadyDeclared ? "existing" : "studio";
           if (isAlreadyDeclared) {
-            addLog("Class already declared on-chain (verified by studio).");
+            addLog("Class hash already exists on-chain. Reusing it without sending a new declare.");
           } else {
-            addLog(`Gasless declare tx: ${data.txHash}`);
+            addLog(`Studio-sponsored declare tx: ${data.txHash}`);
           }
         } else {
           throw new Error(data.error || "Server declare failed");
         }
       } catch (apiErr) {
-        addLog(`Gasless declare unavailable: ${apiErr instanceof Error ? apiErr.message : "Internal error"}. Falling back to local wallet...`);
+        const paymasterMessage = apiErr instanceof Error ? apiErr.message : "Internal error";
+        addLog(`Studio-sponsored declare unavailable: ${paymasterMessage}`);
+
+        if (!starknetAccount) {
+          setShowAuthModal(true);
+          throw new Error(
+            `Studio-sponsored declare is unavailable (${paymasterMessage}). Connect a wallet to continue with a self-funded declare.`
+          );
+        }
+
+        if (walletType === "privy" && szWallet) {
+          const isDeployed = await szWallet.isDeployed();
+          if (!isDeployed) {
+            setShowDeployAccountPrompt(true);
+            throw new Error(
+              `Studio-sponsored declare is unavailable (${paymasterMessage}). Deploy your Privy account on ${netConfig.label} before using the local fallback.`
+            );
+          }
+        }
+
+        const account = starknetAccount as Account;
+        declareSource = "local";
+        try {
+          const estimate = await account.estimateDeclareFee({
+            contract: activeBuildData.sierra as CompiledSierra,
+            casm: activeBuildData.casm as CairoAssembly,
+          });
+          const estimatedFee = BigInt(estimate.overall_fee);
+          const balanceProvider = (sdkRef.current?.getProvider() ?? account) as ProviderInterface;
+          const balanceRaw = await readStrkBalance(balanceProvider, walletAddress);
+          const estimatedFeeStrk = formatStrkAmount(estimatedFee);
+          const balanceStrk = formatStrkAmount(balanceRaw);
+
+          setStrkBalance(balanceStrk);
+          addLog(`Local declare estimate: ~${estimatedFeeStrk} STRK. Wallet balance: ${balanceStrk} STRK.`);
+
+          if (estimatedFee > balanceRaw) {
+            throw new Error(
+              `Insufficient STRK for declare on ${netConfig.label}. Estimated fee: ${estimatedFeeStrk} STRK. Available balance: ${balanceStrk} STRK.`
+            );
+          }
+        } catch (feeErr) {
+          if (feeErr instanceof Error && feeErr.message.includes("Insufficient STRK")) {
+            throw feeErr;
+          }
+
+          addLog(`Could not pre-estimate local declare fee: ${feeErr instanceof Error ? feeErr.message : "Unknown error"}.`);
+        }
+
+        addLog("Falling back to local wallet declaration...");
         const localResult = await (starknetAccount as Account).declare({
           contract: activeBuildData.sierra as CompiledSierra,
           casm: activeBuildData.casm as CairoAssembly,
@@ -917,7 +961,10 @@ export default function StarkzapIDE() {
         };
       }
 
-      setDeployStep("sign", "done", `tx: ${declareResult.transaction_hash.slice(0, 10) || "none"}...`);
+      const signDetail = isAlreadyDeclared
+        ? "skipped (already declared)"
+        : `${declareSource === "local" ? "local" : "studio"} tx: ${declareResult.transaction_hash.slice(0, 10)}...`;
+      setDeployStep("sign", "done", signDetail);
       
       if (!isAlreadyDeclared && declareResult.transaction_hash) {
         setDeployStep("broadcast", "active");
@@ -925,7 +972,7 @@ export default function StarkzapIDE() {
           await waitForTx(declareResult.transaction_hash);
         } catch (waitErr) {
           if ((waitErr as Error).message === "timeout") {
-            throw new Error(`Transaction timed out after ${TX_TIMEOUT_LABEL}. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${declareResult.transaction_hash}`);
+            throw new Error(`Transaction timed out after ${TX_TIMEOUT_LABEL}. The network may be congested. Check the tx on explorer: ${netConfig.explorer}/tx/${declareResult.transaction_hash}`);
           }
           throw waitErr;
         }
@@ -942,7 +989,9 @@ export default function StarkzapIDE() {
       setDeployStatus("declared");
       addLog(`Declare success! Class Hash: ${cHash}`);
       addLog(`Explorer: ${netConfig.explorer}/class/${cHash}`);
-      logTransaction({ hash: declareResult.transaction_hash, type: "declare", status: "success" });
+      if (declareResult.transaction_hash) {
+        logTransaction({ hash: declareResult.transaction_hash, type: "declare", status: "success" });
+      }
       pushToast({
         tone: "success",
         title: "Contract declared",
@@ -973,7 +1022,7 @@ export default function StarkzapIDE() {
         pushToast({
           tone: "error",
           title: "Declare timed out",
-          description: `No confirmation after ${TX_TIMEOUT_LABEL}. The paymaster may be out of gas or the network is congested. Check the terminal for the tx link.`,
+          description: `No confirmation after ${TX_TIMEOUT_LABEL}. The network may be congested. Check the terminal for the tx link.`,
         });
       } else {
         pushToast({
@@ -1389,7 +1438,7 @@ export default function StarkzapIDE() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] text-neutral-400 font-sans overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 bg-[#050505] text-neutral-400 font-sans overflow-hidden">
       {/* ── TOP BAR ── */}
       <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-800 bg-black/40 backdrop-blur-xl flex-shrink-0 z-20 gap-4">
         {/* Left: traffic lights + logo */}
@@ -1471,7 +1520,7 @@ export default function StarkzapIDE() {
 
       <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} updateSetting={updateSetting} />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ── ACTIVITY BAR ── */}
         <div className="flex flex-col items-center w-12 border-r border-neutral-800 bg-black/20 backdrop-blur-sm py-4 gap-4 flex-shrink-0">
           <ActivityIcon label="Explorer" icon={Files} active={activeSidebarTab === "explorer"} onClick={() => { setActiveSidebarTab("explorer"); setIsSidebarOpen(true); setIsRightPanelOpen(true); }} />
@@ -1489,13 +1538,13 @@ export default function StarkzapIDE() {
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 260, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              className="flex flex-col border-r border-neutral-800 bg-black/20 backdrop-blur-sm overflow-hidden flex-shrink-0"
+              className="flex min-h-0 flex-col border-r border-neutral-800 bg-black/20 backdrop-blur-sm overflow-hidden flex-shrink-0"
             >
               <PanelHeader title={sidebarTitleMap[activeSidebarTab] ?? activeSidebarTab}>
                 {renderSidebarActions()}
               </PanelHeader>
 
-              <ScrollArea className="flex-1" onContextMenu={(e) => openContextMenu(e, null)}>
+              <ScrollArea className="min-h-0 flex-1" onContextMenu={(e) => openContextMenu(e, null)}>
                 {activeSidebarTab === "explorer" && (
                   <div className="py-2">
                     <div className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase text-neutral-500 mb-1 group cursor-pointer hover:bg-white/[0.02]">

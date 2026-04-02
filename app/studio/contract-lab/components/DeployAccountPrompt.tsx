@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Shield, X, Copy, Check } from "lucide-react";
+import { Loader2, Shield, X, Copy, Check, ExternalLink } from "lucide-react";
 import { clsx } from "clsx";
 import { useState } from "react";
 
@@ -23,6 +23,8 @@ export function DeployAccountPrompt({
   onDeployAccount,
 }: DeployAccountPromptProps) {
   const [copied, setCopied] = useState(false);
+  const isSepolia = networkLabel.toLowerCase().includes("sepolia");
+
   const copy = () => {
     navigator.clipboard.writeText(walletAddress);
     setCopied(true);
@@ -71,6 +73,17 @@ export function DeployAccountPrompt({
               <p className="text-[10px] text-amber-500/80 mb-6 leading-relaxed">
                 Once funded, click Deploy Account below.
               </p>
+              {isSepolia && (
+                <a
+                  href="https://starknet-faucet.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mb-6 flex items-center justify-between rounded-xl border border-sky-500/20 bg-sky-500/5 px-3 py-2.5 text-[10px] text-sky-300 transition-colors hover:border-sky-400/30 hover:bg-sky-500/10"
+                >
+                  <span>Need testnet STRK? Open the Starknet faucet.</span>
+                  <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                </a>
+              )}
               <div className="flex gap-3">
                 <button
                   onClick={onClose}

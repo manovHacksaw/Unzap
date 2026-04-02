@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect } from "react"
 
 const LOGO_PATHS: { d: string; fill: string }[] = [
   {
@@ -59,24 +59,30 @@ export default function LogoParticles({ className }: { className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mousePositionRef = useRef({ x: 0, y: 0 })
   const isTouchingRef = useRef(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobileRef = useRef(false)
 
   useEffect(() => {
     const canvas = canvasRef.current
     const container = containerRef.current
     if (!canvas || !container) return
 
-    const ctx = canvas.getContext("2d")
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })
     if (!ctx) return
 
     const updateCanvasSize = () => {
       const rect = container.getBoundingClientRect()
-      canvas.width = Math.round(rect.width)
-      canvas.height = Math.round(rect.height)
-      setIsMobile(rect.width < 768)
+      const nextWidth = Math.round(rect.width)
+      const nextHeight = Math.round(rect.height)
+
+      if (nextWidth === 0 || nextHeight === 0) return false
+
+      canvas.width = nextWidth
+      canvas.height = nextHeight
+      isMobileRef.current = rect.width < 768
+      return true
     }
 
-    updateCanvasSize()
+    if (!updateCanvasSize()) return
 
     let particles: {
       x: number
@@ -100,7 +106,7 @@ export default function LogoParticles({ className }: { className?: string }) {
       ctx.save()
 
       const containerMinSize = Math.min(canvas.width, canvas.height)
-      const logoSize = isMobile ? containerMinSize * 0.92 : containerMinSize * 0.85
+      const logoSize = isMobileRef.current ? containerMinSize * 0.92 : containerMinSize * 0.85
       const logoScale = logoSize / LOGO_VIEWBOX.width
 
       ctx.translate(
@@ -212,7 +218,7 @@ export default function LogoParticles({ className }: { className?: string }) {
             currentColor = lerpColor(BLUE_BASE, AMBER_BASE, t)
             const tGlow = t * 0.4
             currentGlow = lerpColor(
-              { r: BLUE_BASE.r, g: BLUE_BASE.b, b: BLUE_BASE.b },
+              { r: BLUE_BASE.r, g: BLUE_BASE.g, b: BLUE_BASE.b },
               { r: AMBER_BASE.r, g: AMBER_BASE.g, b: AMBER_BASE.b },
               tGlow,
             ).replace("rgb", "rgba").replace(")", ",0.25)")
@@ -260,7 +266,7 @@ export default function LogoParticles({ className }: { className?: string }) {
     animate()
 
     const handleResize = () => {
-      updateCanvasSize()
+      if (!updateCanvasSize()) return
       createTextImage()
       particles = []
       createInitialParticles()
@@ -319,7 +325,7 @@ export default function LogoParticles({ className }: { className?: string }) {
       canvas.removeEventListener("touchend", handleTouchEnd)
       cancelAnimationFrame(animationFrameId)
     }
-  }, [isMobile])
+  }, [])
 
   return (
     <div ref={containerRef} className={`relative w-full h-full ${className || ""}`}>
