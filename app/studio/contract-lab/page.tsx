@@ -1228,15 +1228,46 @@ export default function StarkzapIDE() {
 
   const renderLogLine = (log: string) => {
     const parts = log.split(/(\b0x[a-fA-F0-9]{40,64}\b|https?:\/\/[^\s,]+)/g);
+    const logLower = log.toLowerCase();
+    
+    // Heuristic: determine the link type based on keywords in the line
+    let type: "tx" | "contract" | "class" = "tx";
+    if (logLower.includes("contract") || logLower.includes("address") || logLower.includes(" wallet")) {
+      type = "contract";
+    } else if (logLower.includes("class")) {
+      type = "class";
+    } else if (logLower.includes("tx") || logLower.includes("transaction") || logLower.includes("broadcast")) {
+      type = "tx";
+    }
+
     return (
       <div className="selection:bg-amber-500/40 selection:text-white cursor-text">
         {parts.map((part, index) => {
           if (part.startsWith("0x")) {
-            const isAddr = part.length <= 44;
-            const link = isAddr ? `${netConfig.explorer}/contract/${part}` : `${netConfig.explorer}/tx/${part}`;
-            return <a key={index} href={link} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 font-mono underline decoration-amber-400/20 underline-offset-2 transition-colors cursor-pointer">{part}</a>;
+            const link = `${netConfig.explorer}/${type}/${part}`;
+            return (
+              <a
+                key={index}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-amber-400 hover:text-amber-300 font-mono underline decoration-amber-400/20 underline-offset-2 transition-colors cursor-pointer inline-block"
+              >
+                {part}
+              </a>
+            );
           } else if (part.startsWith("http")) {
-            return <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 underline decoration-sky-400/30 underline-offset-2 transition-colors cursor-pointer">{part}</a>;
+            return (
+              <a
+                key={index}
+                href={part}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 hover:text-sky-300 underline decoration-sky-400/30 underline-offset-2 transition-colors cursor-pointer"
+              >
+                {part}
+              </a>
+            );
           }
           return <span key={index} className="opacity-90">{part}</span>;
         })}
