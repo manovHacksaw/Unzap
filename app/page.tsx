@@ -2,37 +2,32 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import HeroSphere from "./components/HeroSphere";
 import HeroText from "./components/HeroText";
 import Navbar from "./components/Navbar";
 import CTASection from "./components/CTASection";
 import { FeaturesSection } from "./components/FeaturesSection";
 
-const partners = [
+const developerHighlights = [
   {
-    name: "Medium",
-    svg: (
-      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
-        <path d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z" />
-      </svg>
-    ),
+    title: "Browser-first workflow",
+    description: "Write, build, declare, deploy, and interact without leaving the browser.",
   },
   {
-    name: "Framer",
-    svg: (
-      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 0h16v8h-8zM4 8h8l8 8H4zM4 16h8v8z" />
-      </svg>
-    ),
+    title: "StarkZap-powered execution",
+    description: "Keep sponsored flows, wallet state, and on-chain steps visible instead of hidden.",
   },
   {
-    name: "GitHub",
-    svg: (
-      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-      </svg>
-    ),
+    title: "Flexible wallet onboarding",
+    description: "Use Privy for smoother onboarding or connect your own extension and keep control.",
   },
+];
+
+const resourceLinks = [
+  { label: "Studio Hub", href: "/studio" },
+  { label: "Contract Lab", href: "/studio/contract-lab" },
+  { label: "GitHub", href: "https://github.com/manovHacksaw/Unzap", external: true },
 ];
 
 export default function UnzapLanding() {
@@ -40,9 +35,9 @@ export default function UnzapLanding() {
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 1500), // Phase 2: Headline
-      setTimeout(() => setPhase(2), 3000), // Phase 3: Navbar
-      setTimeout(() => setPhase(3), 4000), // Phase 4: CTA
+      setTimeout(() => setPhase(1), 250),
+      setTimeout(() => setPhase(2), 500),
+      setTimeout(() => setPhase(3), 750),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -94,19 +89,14 @@ export default function UnzapLanding() {
         transition={{
           layout: { type: "spring", stiffness: 200, damping: 25, mass: 1 }
         }}
-        className="relative z-10 flex items-stretch min-h-[calc(100vh-180px)] px-10 pt-4"
+        className="relative z-10 mx-auto flex max-w-[1440px] flex-col gap-8 px-5 pb-8 pt-4 sm:px-8 xl:min-h-[calc(100vh-180px)] xl:flex-row xl:items-stretch xl:gap-6 xl:px-10"
+        id="developers"
       >
         {/* Left column - Headline */}
         <motion.div
           layout
-          className="flex flex-col justify-between w-[38%] py-6 pr-4 will-change-transform"
+          className="order-1 flex min-w-0 flex-col justify-end py-2 xl:basis-[34%] xl:py-6 xl:pr-4 will-change-transform"
         >
-          <div className="invisible">
-            <span className="text-neutral-400 text-[11px] tracking-widest" style={{ fontFamily: "monospace" }}>
-              [ V01.3 N ]
-            </span>
-          </div>
-
           <AnimatePresence mode="wait">
             {phase >= 1 && <HeroText key="hero-text" />}
           </AnimatePresence>
@@ -115,9 +105,11 @@ export default function UnzapLanding() {
         {/* Center column — 3D Sphere */}
         <motion.div
           layout
-          className="flex-1 relative flex items-center justify-center"
+          className="order-3 relative flex min-h-[320px] items-center justify-center overflow-hidden sm:min-h-[360px] xl:order-2 xl:min-h-0 xl:flex-1"
         >
-          <div className="absolute" style={{ inset: "-60px -40px", zIndex: 5 }}>
+          <div
+            className="relative z-10 aspect-square w-full max-w-[360px] sm:max-w-[440px] lg:max-w-[520px] xl:max-w-[600px]"
+          >
             <HeroSphere isReacting={phase >= 1} />
           </div>
         </motion.div>
@@ -125,16 +117,16 @@ export default function UnzapLanding() {
         {/* Right column - CTA */}
         <motion.div
           layout
-          className="flex flex-col justify-between w-[30%] py-6 pl-4 will-change-transform"
+          className="order-2 flex flex-col justify-between gap-6 py-2 xl:order-3 xl:basis-[24%] xl:py-6 xl:pl-4 will-change-transform"
         >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: phase >= 3 ? 1 : 0 }}
-            className="flex items-center justify-end"
+            className="flex flex-col items-start gap-3 xl:items-end"
           >
-            <span className="text-neutral-400 text-[11px] tracking-widest" style={{ fontFamily: "monospace" }}>
-              [ V0.1 ]&emsp;&emsp;[ STARKZAP POWERED ]&emsp;&emsp;[ 001 / 005 ]
-            </span>
+            <p className="hidden max-w-sm text-sm leading-relaxed text-neutral-500 xl:block xl:text-right">
+              Start in Contract Lab. It is the clearest path from a Cairo file to a live Starknet interaction.
+            </p>
           </motion.div>
 
           <AnimatePresence mode="wait">
@@ -142,6 +134,29 @@ export default function UnzapLanding() {
           </AnimatePresence>
         </motion.div>
       </motion.main>
+
+      <motion.section
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: phase >= 3 ? 1 : 0, y: phase >= 3 ? 0 : 24 }}
+        transition={{ duration: 0.9, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-6 sm:px-8 lg:px-10"
+      >
+        <div className="grid gap-px overflow-hidden rounded-[28px] border border-neutral-800 bg-neutral-800 md:grid-cols-3">
+          {developerHighlights.map((item) => (
+            <div key={item.title} className="bg-[#0a0a0a] px-5 py-6 sm:px-6">
+              <div
+                className="mb-3 text-[11px] uppercase tracking-[0.22em] text-neutral-500"
+                style={{ fontFamily: "monospace" }}
+              >
+                {item.title}
+              </div>
+              <p className="max-w-sm text-sm leading-relaxed text-neutral-300">
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </motion.section>
 
       {/* ── FEATURES SECTION ── */}
       <motion.div
@@ -157,20 +172,33 @@ export default function UnzapLanding() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: phase >= 3 ? 1 : 0, y: phase >= 3 ? 0 : 20 }}
         transition={{ duration: 1, ease: "easeOut" }}
-        className="relative z-10 flex flex-col items-center gap-5 pb-16 px-10 pt-20"
+        className="relative z-10 flex flex-col items-center gap-5 px-5 pb-16 pt-20 sm:px-8 lg:px-10"
+        id="resources"
       >
         <p className="text-neutral-500 text-[11px] tracking-widest uppercase" style={{ fontFamily: "monospace" }}>
-          Testnet ready • Powered by Starkzap SDK • Built for Starknet builders
+          Mainnet ready • Powered by Starkzap SDK
         </p>
-        <div className="flex items-center justify-center gap-10 flex-wrap">
-          {partners.map((p) => (
-            <div
-              key={p.name}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-400 transition-colors"
-              title={p.name}
-            >
-              {p.svg}
-              <span className="text-xs tracking-widest text-neutral-600">{p.name}</span>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {resourceLinks.map((resource) => (
+            <div key={resource.label}>
+              {resource.external ? (
+                <a
+                  href={resource.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-neutral-800 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-200"
+                >
+                  {resource.label}
+                  <span className="text-[9px] leading-none">↗</span>
+                </a>
+              ) : (
+                <Link
+                  href={resource.href}
+                  className="inline-flex items-center gap-2 rounded-full border border-neutral-800 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-200"
+                >
+                  {resource.label}
+                </Link>
+              )}
             </div>
           ))}
         </div>

@@ -36,7 +36,7 @@ export default function HeroText() {
                 className="text-neutral-400 text-[11px] tracking-widest mb-5 block"
                 style={{ fontFamily: "monospace" }}
             >
-                [ LIVE EXECUTION ]
+                [ LEARN STARKNET BY DOING ]
             </motion.span>
 
             <motion.h1 className="font-black uppercase leading-[0.92] tracking-tight">
@@ -45,14 +45,14 @@ export default function HeroText() {
                     className="block text-white"
                     style={{ fontSize: "clamp(2rem, 4.5vw, 4.5rem)" }}
                 >
-                    BUILD ON STARKNET.
+                    WRITE CAIRO.
                 </motion.span>
                 <motion.span
                     variants={lineVariants}
                     className="block"
                     style={{ fontSize: "clamp(2rem, 4.5vw, 4.5rem)" }}
                 >
-                    POWERED BY{" "}
+                    EXECUTE WITH{" "}
                     <span
                         style={{
                             background: "linear-gradient(135deg, #e5e7eb 0%, #9ca3af 30%, #ffffff 55%, #6b7280 80%, #d1d5db 100%)",
@@ -69,9 +69,17 @@ export default function HeroText() {
                     className="block text-white"
                     style={{ fontSize: "clamp(2rem, 4.5vw, 4.5rem)" }}
                 >
-                    IN YOUR BROWSER.
+                    SEE EVERY STEP.
                 </motion.span>
             </motion.h1>
+
+            <motion.p
+                variants={lineVariants}
+                className="mt-6 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-base"
+            >
+                Unzap turns Starknet workflows into a browser-native studio with guided execution,
+                deploy-ready contract flows, and interactions that stay understandable.
+            </motion.p>
         </motion.div>
     );
 }
