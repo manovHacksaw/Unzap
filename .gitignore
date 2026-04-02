@@ -44,3 +44,18 @@ next-env.d.ts
 lint_output*.txt
 .vercel
 .env*.local
+
+# local developer state
+.wallet-store.json
+.codex
+CLAUDE.md
+memory/
+dev.db
+logs/
+lint_results*.txt
+status.txt
+tsc_output*.txt
+prisma.config.ts.bak
+
+# local brand/source exports
+.local-assets/
