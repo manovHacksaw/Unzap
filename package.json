@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "fast-build": "bun x next build --no-lint --no-typecheck"
   },
   "dependencies": {
     "@fatsolutions/tongo-sdk": "^1.3.2",
