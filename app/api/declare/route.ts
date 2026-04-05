@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { hash, RpcProvider } from "starknet";
+import { hash, RpcProvider, type CompiledSierra, type CairoAssembly } from "starknet";
 import { StarkZap, StarkSigner, accountPresets } from "starkzap";
 import { getNetworkConfig, type Network } from "@/lib/network-config";
+import { privy } from "@/lib/privy";
+import { prisma } from "@/lib/prisma";
+
+const DAILY_SPONSORED_LIMIT = 10;
 
 function readEnvValue(...keys: string[]) {
   for (const key of keys) {
@@ -34,6 +38,18 @@ function isClassHashMissingError(message: string) {
 }
 
 export async function POST(req: Request) {
+  const header = req.headers.get("authorization");
+  if (!header) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const token = header.replace("Bearer ", "");
+
+  let userId: string;
+  try {
+    const session = await privy.verifyAuthToken(token);
+    userId = session.userId;
+  } catch {
+    return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+  }
+
   let body: { sierra: unknown; casm: unknown; network?: string };
   try {
     body = await req.json();
@@ -71,6 +87,28 @@ export async function POST(req: Request) {
       }
     }
 
+    try {
+      const recentDeclares = await prisma.transaction.count({
+        where: {
+          userId,
+          type: "declare",
+          status: "success",
+          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+      });
+
+      if (recentDeclares >= DAILY_SPONSORED_LIMIT) {
+        return NextResponse.json(
+          {
+            error: `Your daily sponsored declare limit (${DAILY_SPONSORED_LIMIT}/day) reached. Use a self-funded declare instead.`,
+          },
+          { status: 429 }
+        );
+      }
+    } catch (dbErr) {
+      console.warn("[api/declare] Rate limit check failed:", dbErr);
+    }
+
     const { privateKey: deployerPrivateKey, address: deployerAddress } = getSponsorCredentials(networkName);
     if (!deployerPrivateKey || !deployerAddress) {
       return NextResponse.json(
@@ -91,10 +129,27 @@ export async function POST(req: Request) {
     });
 
     const account = wallet.getAccount();
+    const compiledClassHash = hash.computeCompiledClassHash(casm as CairoAssembly);
+    
+    // Sponsored declare
     const result = await account.declare({
-      contract: sierra as Parameters<typeof account.declare>[0]["contract"],
-      casm: casm as Parameters<typeof account.declare>[0]["casm"],
+      contract: sierra as CompiledSierra,
+      casm: casm as CairoAssembly,
+      compiledClassHash,
     });
+
+    try {
+      await prisma.transaction.create({
+        data: {
+          hash: result.transaction_hash,
+          type: "declare",
+          status: "success",
+          userId,
+        },
+      });
+    } catch (dbLogErr) {
+      console.error("[api/declare] Could not log sponsored declaration to DB:", dbLogErr);
+    }
 
     await provider.waitForTransaction(result.transaction_hash);
 
@@ -117,11 +172,16 @@ export async function POST(req: Request) {
           alreadyDeclared: true,
           mode: "already_declared",
         });
-      } catch {
-        // fall through
+      } catch (hashErr) {
+        // extract from msg if possible
+        const hashMatch = msg.match(/0x[a-fA-F0-9]{64}/);
+        return NextResponse.json({
+          classHash: hashMatch ? hashMatch[0] : "0x0",
+          txHash: null,
+          alreadyDeclared: true,
+        });
       }
     }
-
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

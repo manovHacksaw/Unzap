@@ -133,27 +133,32 @@ export function InteractPanel({
   const resolvedDeployedAbi = savedDeployedAbi.length > 0 ? savedDeployedAbi : deployedAbi;
   const effectiveAbi: AbiEntry[] = useCustomTarget && parsedCustomAbi ? parsedCustomAbi : resolvedDeployedAbi;
 
-  const externalFunctions = useMemo(() => {
-    const fns: AbiEntry[] = [];
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const groupedFunctions = useMemo(() => {
+    const groups: Record<string, AbiEntry[]> = { "Main": [] };
     for (const entry of effectiveAbi) {
       if (entry.type === "function" && entry.state_mutability) {
-        fns.push(entry);
+        groups["Main"].push(entry);
       } else if ((entry.type === "impl" || entry.type === "interface") && Array.isArray(entry.items)) {
+        const groupName = entry.name || "Interface";
+        if (!groups[groupName]) groups[groupName] = [];
         for (const item of entry.items) {
-          if (item.state_mutability) fns.push(item);
+          if (item.state_mutability) groups[groupName].push(item);
         }
       }
     }
-    const seen = new Set<string>();
-    return fns.filter(fn => {
-      if (seen.has(fn.name)) return false;
-      seen.add(fn.name);
-      return true;
-    });
+    // Remove empty "Main" if no top-level functions
+    if (groups["Main"].length === 0) delete groups["Main"];
+    return Object.entries(groups).map(([name, items]) => ({ name, items }));
   }, [effectiveAbi]);
 
-  const viewFunctions = externalFunctions.filter((fn: AbiEntry) => fn.state_mutability === "view");
-  const writeFunctions = externalFunctions.filter((fn: AbiEntry) => fn.state_mutability === "external");
+  const toggleGroup = (name: string) => 
+    setCollapsedGroups(prev => ({ ...prev, [name]: !prev[name] }));
+
+  const allFunctions = useMemo(() => groupedFunctions.flatMap(g => g.items), [groupedFunctions]);
+  const viewFunctions = allFunctions.filter((fn: AbiEntry) => fn.state_mutability === "view");
+  const writeFunctions = allFunctions.filter((fn: AbiEntry) => fn.state_mutability === "external");
 
   // ── type helpers ──────────────────────────────────────────────────────────
   const isU256 = (t: string) => t === "core::integer::u256" || t === "u256";
@@ -360,7 +365,7 @@ export function InteractPanel({
         await tx.wait();
       } else {
         // Extension wallet — direct execution
-        const tx = await account!.execute([call]);
+        const tx = await account!.execute([call], { version: 1 });
         txHash = tx.transaction_hash as string;
         addLog(`${fnName} tx: ${txHash}`);
         setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "pending…" } }));
@@ -721,23 +726,19 @@ export function InteractPanel({
               {effectiveAddress.slice(0, 16)}…{effectiveAddress.slice(-8)}
             </span>
             <Tooltip>
-              <TooltipTrigger>
-                <button onClick={copyAddress} className="text-muted-foreground/40 hover:text-foreground/70 transition-colors p-0.5">
-                  {copiedAddress ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                </button>
+              <TooltipTrigger render={<span className="text-muted-foreground/40 hover:text-foreground/70 transition-colors p-0.5 cursor-pointer" onClick={copyAddress} />}>
+                {copiedAddress ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
               </TooltipTrigger>
               <TooltipContent side="top" className="text-[10px]">Copy address</TooltipContent>
             </Tooltip>
             <Tooltip>
-              <TooltipTrigger>
-                <a
+              <TooltipTrigger render={<a
                   href={`${netConfig.explorer}/contract/${effectiveAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-0.5"
-                >
+                />}>
                   <ExternalLink className="w-3 h-3" />
-                </a>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-[10px]">View on Explorer</TooltipContent>
             </Tooltip>
@@ -920,7 +921,7 @@ export function InteractPanel({
         <ScrollArea className="flex-1">
           {activeSubTab === "functions" ? (
             <div className="p-3 space-y-4">
-              {externalFunctions.length === 0 && (
+              {allFunctions.length === 0 && (
                 <div className="py-10 text-center">
                   <p className="text-[10px] text-muted-foreground/30 font-mono italic">
                     {effectiveAbi.length === 0
@@ -930,31 +931,32 @@ export function InteractPanel({
                 </div>
               )}
 
-              {viewFunctions.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 px-0.5">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-500/60">Read</span>
-                    <div className="flex-1 h-px bg-emerald-500/10" />
-                    <span className="text-[8px] text-muted-foreground/30">{viewFunctions.length}</span>
-                  </div>
-                  {viewFunctions.map((fn: AbiEntry) => renderFnCard(fn, true))}
-                </div>
-              )}
+              {groupedFunctions.map((group) => {
+                const isCollapsed = collapsedGroups[group.name];
+                const views = group.items.filter((f: AbiEntry) => f.state_mutability === "view");
+                const writes = group.items.filter((f: AbiEntry) => f.state_mutability === "external");
 
-              {viewFunctions.length > 0 && writeFunctions.length > 0 && (
-                <Separator className="bg-border/30" />
-              )}
+                return (
+                  <div key={group.name} className="space-y-4">
+                    <div 
+                      className="flex items-center gap-2 group cursor-pointer"
+                      onClick={() => toggleGroup(group.name)}
+                    >
+                      <ChevronRight className={clsx("w-3 h-3 text-muted-foreground/40 transition-transform group-hover:text-amber-500/60", !isCollapsed && "rotate-90")} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 group-hover:text-amber-500/70 transition-colors">{group.name}</span>
+                      <div className="flex-1 h-px bg-border/20 group-hover:bg-amber-500/10 transition-colors" />
+                      <span className="text-[8px] text-muted-foreground/30 font-mono">{group.items.length}</span>
+                    </div>
 
-              {writeFunctions.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 px-0.5">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-500/60">Write</span>
-                    <div className="flex-1 h-px bg-amber-500/10" />
-                    <span className="text-[8px] text-muted-foreground/30">{writeFunctions.length}</span>
+                    {!isCollapsed && (
+                      <div className="space-y-3">
+                        {views.length > 0 && views.map((fn: AbiEntry) => renderFnCard(fn, true))}
+                        {writes.length > 0 && writes.map((fn: AbiEntry) => renderFnCard(fn, false))}
+                      </div>
+                    )}
                   </div>
-                  {writeFunctions.map((fn: AbiEntry) => renderFnCard(fn, false))}
-                </div>
-              )}
+                );
+              })}
             </div>
           ) : (
             <div className="p-3 space-y-1.5">
@@ -984,15 +986,13 @@ export function InteractPanel({
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {entry.txHash && (
                           <Tooltip>
-                            <TooltipTrigger>
-                              <a
+                            <TooltipTrigger render={<a
                                 href={`${netConfig.explorer}/tx/${entry.txHash}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-0.5"
-                              >
+                              />}>
                                 <ArrowUpRight className="w-3 h-3" />
-                              </a>
                             </TooltipTrigger>
                             <TooltipContent className="text-[9px]">View tx on Explorer</TooltipContent>
                           </Tooltip>
@@ -1045,10 +1045,8 @@ export function InteractPanel({
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/30 border border-neutral-800">
               <span className="text-[10px] font-mono text-muted-foreground/70 truncate max-w-[180px]">{effectiveAddress}</span>
               <Tooltip>
-                <TooltipTrigger>
-                  <button onClick={copyAddress} className="text-muted-foreground/40 hover:text-foreground/70 transition-colors">
+                <TooltipTrigger render={<span onClick={copyAddress} className="text-muted-foreground/40 hover:text-foreground/70 transition-colors cursor-pointer" />}>
                     {copiedAddress ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                  </button>
                 </TooltipTrigger>
                 <TooltipContent className="text-[10px]">Copy address</TooltipContent>
               </Tooltip>
@@ -1243,28 +1241,42 @@ export function InteractPanel({
 
       {/* Content */}
       {activeSubTab === "functions" ? (
-        <div className="grid grid-cols-2 gap-4">
-          {viewFunctions.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-500/60">Read</span>
-                <div className="flex-1 h-px bg-emerald-500/10" />
-                <span className="text-[8px] text-muted-foreground/30">{viewFunctions.length} functions</span>
+        <div className="grid grid-cols-2 gap-6">
+          {groupedFunctions.map((group) => {
+            const isCollapsed = collapsedGroups[group.name];
+            const views = group.items.filter((f: AbiEntry) => f.state_mutability === "view");
+            const writes = group.items.filter((f: AbiEntry) => f.state_mutability === "external");
+
+            return (
+              <div key={group.name} className="col-span-2 space-y-4">
+                <div 
+                  className="flex items-center gap-3 group cursor-pointer"
+                  onClick={() => toggleGroup(group.name)}
+                >
+                  <ChevronRight className={clsx("w-4 h-4 text-muted-foreground/40 transition-transform group-hover:text-amber-500/60", !isCollapsed && "rotate-90")} />
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-foreground/60 group-hover:text-amber-500/80 transition-colors">{group.name}</span>
+                  <div className="flex-1 h-px bg-border/20 group-hover:bg-amber-500/10 transition-colors" />
+                  <Badge className="bg-neutral-900 text-neutral-500 border-neutral-800 text-[10px]">{group.items.length}</Badge>
+                </div>
+
+                {!isCollapsed && (
+                  <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {views.length > 0 && (
+                       <div className="space-y-2">
+                         {views.map((fn: AbiEntry) => renderFnCard(fn, true))}
+                       </div>
+                    )}
+                    {writes.length > 0 && (
+                       <div className="space-y-2">
+                         {writes.map((fn: AbiEntry) => renderFnCard(fn, false))}
+                       </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {viewFunctions.map((fn: AbiEntry) => renderFnCard(fn, true))}
-            </div>
-          )}
-          {writeFunctions.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-500/60">Write</span>
-                <div className="flex-1 h-px bg-amber-500/10" />
-                <span className="text-[8px] text-muted-foreground/30">{writeFunctions.length} functions</span>
-              </div>
-              {writeFunctions.map((fn: AbiEntry) => renderFnCard(fn, false))}
-            </div>
-          )}
-          {externalFunctions.length === 0 && (
+            );
+          })}
+          {allFunctions.length === 0 && (
             <div className="col-span-2 py-16 text-center text-[11px] text-muted-foreground/30 font-mono italic">
               {effectiveAbi.length === 0 ? "No ABI loaded — build the contract first." : "No external functions in ABI."}
             </div>
@@ -1302,21 +1314,19 @@ export function InteractPanel({
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {entry.txHash && (
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <a
-                            href={`${netConfig.explorer}/tx/${entry.txHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-1"
-                          >
-                            <ArrowUpRight className="w-3.5 h-3.5" />
-                          </a>
-                        </TooltipTrigger>
-                        <TooltipContent className="text-[10px]">View on Explorer</TooltipContent>
-                      </Tooltip>
-                    )}
+                      {entry.txHash && (
+                        <Tooltip>
+                          <TooltipTrigger render={<a
+                              href={`${netConfig.explorer}/tx/${entry.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-1"
+                            />}>
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                          </TooltipTrigger>
+                          <TooltipContent className="text-[10px]">View on Explorer</TooltipContent>
+                        </Tooltip>
+                      )}
                     <CopyButton text={entry.result || entry.error || ""} />
                   </div>
                 </div>
