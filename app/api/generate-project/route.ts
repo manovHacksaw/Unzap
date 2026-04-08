@@ -10,12 +10,13 @@ interface GenerateProjectBody {
   classHash: string;
   network: Network;
   abi: AbiEntry[];
+  format?: "zip" | "json";
 }
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Partial<GenerateProjectBody>;
-    const { contractName, contractAddress, classHash, network, abi } = body;
+    const { contractName, contractAddress, classHash, network, abi, format = "zip" } = body;
 
     if (!contractAddress || !abi || !Array.isArray(abi)) {
       return NextResponse.json(
@@ -42,7 +43,26 @@ export async function POST(req: Request) {
       parsed,
     });
 
-    return NextResponse.json(result);
+    if (format === "json") {
+      return NextResponse.json(result, { status: 200 });
+    }
+
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+
+    for (const [path, content] of Object.entries(result.files)) {
+      zip.file(path, content);
+    }
+
+    const content = await zip.generateAsync({ type: "blob" });
+
+    return new NextResponse(content as any, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${resolvedName}-app.zip"`,
+      },
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[generate-project] error:", msg);

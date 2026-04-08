@@ -162,9 +162,6 @@ function generateStarkzapContext(): string {
 // Minimal hook to access the Starkzap wallet instance.
 // Wrap your app with <StarkzapProvider> before using write hooks.
 
-import { createContext, useContext, useState, type ReactNode } from 'react';
-import { StarkZap, OnboardStrategy, accountPresets } from 'starkzap';
-
 type SzWallet = Awaited<ReturnType<StarkZap['onboard']>>['wallet'];
 
 interface StarkzapContextValue {

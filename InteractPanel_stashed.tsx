@@ -23,7 +23,6 @@ import {
   Clock,
   ArrowUpRight,
   Wallet,
-  Rocket,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { getNetworkConfig } from "@/lib/network-config";
@@ -162,19 +161,8 @@ export function InteractPanel({
   const writeFunctions = allFunctions.filter((fn: AbiEntry) => fn.state_mutability === "external");
 
   const generateHooks = () => {
-    navigateToProjectWorkspace();
-  };
-
-  const navigateToProjectWorkspace = () => {
     const name = activeFileName?.replace(/\.cairo$/, "") || "MyContract";
-    const classHash = recentDeployments.find(d => d.contractAddress.toLowerCase() === effectiveAddress.toLowerCase())?.classHash || "";
-    const query = new URLSearchParams({
-      address: effectiveAddress,
-      name,
-      network: network || "sepolia",
-      classHash
-    }).toString();
-    window.open(`/studio/project-workspace?${query}`, "_blank");
+    window.open(`/studio/hook-gen?address=${effectiveAddress}&name=${name}`, "_blank");
   };
 
   const isU256 = (t: string) => t === "core::integer::u256" || t === "u256";
@@ -270,7 +258,7 @@ export function InteractPanel({
         entrypoint: fnName,
         calldata,
       });
-      const decoded = decodeOutputValue(res as string[], fn.outputs?.[0]?.type || "");
+      const decoded = decodeOutputValue(res.result, fn.outputs?.[0]?.type || "");
       setFuncResults(prev => ({ ...prev, [fnName]: decoded }));
       addLog(`read ${fnName} success: ${decoded.decoded}`);
       setCallLog(prev => [{
@@ -305,69 +293,36 @@ export function InteractPanel({
       timestamp: Date.now(),
     };
 
-    let txHash = "";
     try {
       const calldata = buildCalldata(fn);
       const isSponsored = szWallet?.mode === "sponsored" && walletType === "privy";
 
       const txOptions = isSponsored ? { feeMode: "sponsored" as const } : { maxFee: 0 };
       
-      let res;
-      if (walletType === "privy" && szWallet) {
-        addLog(`${fnName}: sending sponsored transaction via Starkzap...`);
-        // Using Version 1 pattern with maxFee to avoid V3 Resource Bounds validation issues
-        const tx = await szWallet.execute([
-          {
-            contractAddress: effectiveAddress,
-            entrypoint: fnName,
-            calldata,
-          }
-        ], { feeMode: "sponsored" as const });
-        
-        txHash = tx.hash;
-        addLog(`${fnName} tx: ${txHash}`);
-        setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "pending…" } }));
-        logEntry.txHash = txHash;
-        logTransaction({ hash: txHash, type: fnName, status: "pending" });
-        setCallLog(prev => [logEntry, ...prev]);
-        
-        notify?.({
-          tone: "info",
-          title: "Transaction Submitted",
-          description: `Calling ${fnName}. Waiting for confirmation...`,
-        });
+      const res = await account.execute(
+        {
+          contractAddress: effectiveAddress,
+          entrypoint: fnName,
+          calldata,
+        },
+        undefined,
+        txOptions as any
+      );
 
-      await tx.wait();
-      addLog(`${fnName} confirmed ✓`);
-      setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "confirmed ✓" } }));
-      logTransaction({ hash: txHash, type: fnName, status: "success" });
-      } else {
-        const result = await (account as Account).execute(
-          {
-            contractAddress: effectiveAddress,
-            entrypoint: fnName,
-            calldata,
-          }
-        );
-        txHash = result.transaction_hash;
-        logEntry.txHash = txHash;
-        setCallLog(prev => [logEntry, ...prev]);
+      logEntry.txHash = res.transaction_hash;
+      setCallLog(prev => [logEntry, ...prev]);
 
-        addLog(`execute ${fnName} submitted: ${txHash.slice(0, 10)}...`);
-        notify?.({
-          tone: "info",
-          title: "Transaction Submitted",
-          description: `Calling ${fnName}. Waiting for confirmation...`,
-        });
+      addLog(`execute ${fnName} submitted: ${res.transaction_hash.slice(0, 10)}...`);
+      notify?.({
+        tone: "info",
+        title: "Transaction Submitted",
+        description: `Calling ${fnName}. Waiting for confirmation...`,
+      });
 
-      await (account as Account).waitForTransaction(txHash);
-      addLog(`${fnName} confirmed ✓`);
-      setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "confirmed ✓" } }));
-      logTransaction({ hash: txHash, type: fnName, status: "success" });
-      }
+      const receipt = await provider?.waitForTransaction(res.transaction_hash);
       
       setCallLog(prev => prev.map(entry => 
-        entry.txHash === txHash ? { ...entry, confirmed: true } : entry
+        entry.txHash === res.transaction_hash ? { ...entry, confirmed: true } : entry
       ));
 
       addLog(`execute ${fnName} confirmed`);
@@ -451,19 +406,10 @@ export function InteractPanel({
         </div>
       </div>
       {szWallet?.mode === "sponsored" && (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <p className="text-[9px] text-muted-foreground/40 font-medium max-w-[140px] text-right leading-tight">
             Gas costs are currently <span className="text-amber-500/80 font-bold italic underline decoration-amber-500/30 underline-offset-2">Fully Sponsored</span> by Starkzap
           </p>
-          <div className="w-px h-6 bg-neutral-800/50" />
-          <Button
-            size="sm"
-            onClick={navigateToProjectWorkspace}
-            className="h-7 px-3 bg-amber-500 text-black hover:bg-amber-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-[0_4px_12px_rgba(245,158,11,0.2)]"
-          >
-            <Rocket className="w-3 h-3" />
-            Build App
-          </Button>
         </div>
       )}
     </div>

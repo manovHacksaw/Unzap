@@ -272,7 +272,7 @@ export function useContractDeploy({
             const localResult = await (starknetAccount as Account).declare({
               contract: activeBuildData.sierra as CompiledSierra,
               casm: activeBuildData.casm as CairoAssembly,
-            }, { maxFee: 0 } as any);
+            });
             declareResult = {
               transaction_hash: localResult.transaction_hash,
               class_hash: localResult.class_hash,
