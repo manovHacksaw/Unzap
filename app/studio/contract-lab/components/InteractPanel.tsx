@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Code2,
   Copy,
+  Download,
   ExternalLink,
   Hash as LucideHash,
   Loader2,
@@ -144,18 +145,27 @@ export function InteractPanel({
         }
       }
     }
+<<<<<<< Updated upstream
     const seen = new Set<string>();
     return fns.filter(fn => {
       if (seen.has(fn.name)) return false;
       seen.add(fn.name);
       return true;
     });
+=======
+    if (groups["Main"].length === 0) delete groups["Main"];
+    return Object.entries(groups).map(([name, items]) => ({ name, items }));
+>>>>>>> Stashed changes
   }, [effectiveAbi]);
 
   const viewFunctions = externalFunctions.filter((fn: AbiEntry) => fn.state_mutability === "view");
   const writeFunctions = externalFunctions.filter((fn: AbiEntry) => fn.state_mutability === "external");
 
-  // ── type helpers ──────────────────────────────────────────────────────────
+  const generateHooks = () => {
+    const name = activeFileName?.replace(/\.cairo$/, "") || "MyContract";
+    window.open(`/studio/hook-gen?address=${effectiveAddress}&name=${name}`, "_blank");
+  };
+
   const isU256 = (t: string) => t === "core::integer::u256" || t === "u256";
   const isBool = (t: string) => t === "core::bool" || t === "bool";
   const isAddress = (t: string) => t.includes("ContractAddress");
@@ -237,116 +247,70 @@ export function InteractPanel({
     return calldata;
   }
 
-  const resolveAbiForAddress = useCallback(async (address: string) => {
-    if (!provider) {
-      throw new Error("No provider available to resolve ABI on the selected network.");
-    }
-
-    const contractClass = await provider.getClassAt(address);
-    const resolvedAbi = normalizeAbiEntries((contractClass as { abi?: unknown }).abi);
-    if (resolvedAbi.length === 0) {
-      throw new Error("No ABI was returned for this contract.");
-    }
-
-    return resolvedAbi;
-  }, [provider]);
-
-  const loadCustomTarget = useCallback(async (addressInput: string, abiOverride?: AbiEntry[]) => {
-    const address = addressInput.trim();
-    if (!address) return;
-
-    setIsLoadingTarget(true);
-    try {
-      const resolvedAbi = abiOverride && abiOverride.length > 0 ? abiOverride : await resolveAbiForAddress(address);
-      setCustomAddress(address);
-      setCustomAbiText(formatAbiEntries(resolvedAbi));
-      setCustomAbiError("");
-      setUseCustomTarget(true);
-      setShowCustomTarget(false);
-      setActiveSubTab("functions");
-      addLog(`[interact] Loaded ${address.slice(0, 10)}... with ${resolvedAbi.length} ABI entr${resolvedAbi.length === 1 ? "y" : "ies"}.`);
-      notify?.({
-        tone: "success",
-        title: "Contract interface loaded",
-        description: `${resolvedAbi.length} ABI entr${resolvedAbi.length === 1 ? "y" : "ies"} loaded for ${address.slice(0, 10)}...`,
-      });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to load contract ABI.";
-      setCustomAbiError(message);
-      addLog(`[interact] ${message}`);
-      notify?.({
-        tone: "error",
-        title: "Contract load failed",
-        description: message,
-      });
-    } finally {
-      setIsLoadingTarget(false);
-    }
-  }, [addLog, notify, resolveAbiForAddress]);
-
-  const callFn = async (fn: AbiEntry) => {
-    if (!effectiveAddress) return;
-    const fnName = fn.name as string;
+  const handleRead = async (fn: AbiEntry) => {
+    if (!provider || !effectiveAddress) return;
+    const fnName = fn.name;
     setFuncLoading(prev => ({ ...prev, [fnName]: true }));
     setFuncErrors(prev => ({ ...prev, [fnName]: "" }));
-    const logEntry: CallLogEntry = {
-      id: Date.now().toString(),
-      fnName,
-      type: "read",
-      inputs: funcInputs[fnName] ?? {},
-      timestamp: Date.now(),
-    };
     try {
       const calldata = buildCalldata(fn);
-      if (!provider) throw new Error("No provider available");
-      const raw: string[] = await provider.callContract({
+      const res = await provider.callContract({
         contractAddress: effectiveAddress,
         entrypoint: fnName,
         calldata,
       });
-      const outputs: Array<{ type: string; name?: string }> = fn.outputs ?? [];
-      let result: FnResult;
-      if (outputs.length === 1) {
-        result = decodeOutputValue(raw, outputs[0].type);
-      } else if (outputs.length > 1) {
-        result = { raw, decoded: raw.join(", ") };
-      } else {
-        result = { raw, decoded: raw.length > 0 ? raw.join(", ") : "✓" };
-      }
-      setFuncResults(prev => ({ ...prev, [fnName]: result }));
-      logEntry.result = result.extra ? `${result.decoded}  (${result.extra})` : result.decoded;
-      addLog(`read ${fnName}: ${logEntry.result?.slice(0, 80)}`);
+      const decoded = decodeOutputValue(res.result, fn.outputs?.[0]?.type || "");
+      setFuncResults(prev => ({ ...prev, [fnName]: decoded }));
+      addLog(`read ${fnName} success: ${decoded.decoded}`);
+      setCallLog(prev => [{
+        id: Math.random().toString(36).slice(2),
+        fnName,
+        type: "read",
+        timestamp: Date.now(),
+        result: decoded.decoded,
+      }, ...prev]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setFuncErrors(prev => ({ ...prev, [fnName]: msg }));
-      logEntry.error = msg;
-      addLog(`read ${fnName} failed: ${msg.slice(0, 80)}`);
+      addLog(`read ${fnName} failed: ${msg.slice(0, 60)}`);
     } finally {
       setFuncLoading(prev => ({ ...prev, [fnName]: false }));
-      setCallLog(prev => [logEntry, ...prev]);
     }
   };
 
-  const executeFn = async (fn: AbiEntry) => {
-    if (!account && !szWallet) { onRequestWallet(); return; }
-    if (!effectiveAddress) return;
-    const fnName = fn.name as string;
+  const handleWrite = async (fn: AbiEntry) => {
+    if (!account || !effectiveAddress) {
+      onRequestWallet();
+      return;
+    }
+    const fnName = fn.name;
     setFuncLoading(prev => ({ ...prev, [fnName]: true }));
     setFuncErrors(prev => ({ ...prev, [fnName]: "" }));
-    setFuncResults(prev => { const next = { ...prev }; delete next[fnName]; return next; });
+
     const logEntry: CallLogEntry = {
-      id: Date.now().toString(),
+      id: Math.random().toString(36).slice(2),
       fnName,
       type: "write",
-      inputs: funcInputs[fnName] ?? {},
       timestamp: Date.now(),
     };
+
     try {
       const calldata = buildCalldata(fn);
-      const call = { contractAddress: effectiveAddress, entrypoint: fnName, calldata };
+      const isSponsored = szWallet?.mode === "sponsored" && walletType === "privy";
 
-      let txHash = "";
+      const txOptions = isSponsored ? { feeMode: "sponsored" as const } : { maxFee: 0 };
+      
+      const res = await account.execute(
+        {
+          contractAddress: effectiveAddress,
+          entrypoint: fnName,
+          calldata,
+        },
+        undefined,
+        txOptions as any
+      );
 
+<<<<<<< Updated upstream
       if (walletType === "privy" && szWallet) {
         // Gasless execution via AVNU paymaster
         addLog(`${fnName}: sending gasless (AVNU paymaster)…`);
@@ -369,15 +333,29 @@ export function InteractPanel({
         setCallLog(prev => [logEntry, ...prev]);
         await account!.waitForTransaction(txHash);
       }
+=======
+      logEntry.txHash = res.transaction_hash;
+      setCallLog(prev => [logEntry, ...prev]);
+>>>>>>> Stashed changes
 
-      addLog(`${fnName} confirmed ✓`);
-      setFuncResults(prev => ({ ...prev, [fnName]: { raw: [txHash], decoded: "confirmed ✓" } }));
-      logTransaction({ hash: txHash, type: fnName, status: "success" });
-      setCallLog(prev => prev.map(e => e.id === logEntry.id ? { ...e, confirmed: true } : e));
+      addLog(`execute ${fnName} submitted: ${res.transaction_hash.slice(0, 10)}...`);
+      notify?.({
+        tone: "info",
+        title: "Transaction Submitted",
+        description: `Calling ${fnName}. Waiting for confirmation...`,
+      });
+
+      const receipt = await provider?.waitForTransaction(res.transaction_hash);
+      
+      setCallLog(prev => prev.map(entry => 
+        entry.txHash === res.transaction_hash ? { ...entry, confirmed: true } : entry
+      ));
+
+      addLog(`execute ${fnName} confirmed`);
       notify?.({
         tone: "success",
-        title: `${fnName} confirmed`,
-        description: walletType === "privy" ? "Gasless transaction landed successfully." : "Transaction landed successfully.",
+        title: "Transaction Confirmed",
+        description: `${fnName} has been successfully executed on-chain.`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -409,223 +387,169 @@ export function InteractPanel({
     setTimeout(() => setCopiedAddress(false), 1500);
   };
 
-  // ── input renderer ────────────────────────────────────────────────────────
-  const renderInput = (fnName: string, inp: { name: string; type: string }) => {
-    const value = funcInputs[fnName]?.[inp.name] ?? "";
-    const setVal = (v: string) => setFuncInputs(prev => ({
-      ...prev,
-      [fnName]: { ...prev[fnName], [inp.name]: v },
-    }));
-    const shortType = inp.type.split("::").pop() ?? inp.type;
-
-    if (isBool(inp.type)) {
-      const checked = value === "true" || value === "1";
-      return (
-        <div key={inp.name} className="flex items-center justify-between py-1.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono text-foreground/70">{inp.name}</span>
-            <span className="text-[9px] text-muted-foreground/50">bool</span>
-          </div>
-          <button
-            onClick={() => setVal(checked ? "false" : "true")}
-            className={clsx(
-              "w-8 h-4 rounded-full transition-all relative flex-shrink-0 border",
-              checked ? "bg-emerald-500/20 border-emerald-500/40" : "bg-white/5 border-border/60"
-            )}
-          >
-            <div className={clsx(
-              "absolute top-0.5 w-3 h-3 rounded-full transition-all",
-              checked ? "translate-x-[18px] bg-emerald-400" : "translate-x-0.5 bg-neutral-600"
-            )} />
-          </button>
-        </div>
-      );
+  const loadCustomTarget = async (address: string, abi?: AbiEntry[]) => {
+    setIsLoadingTarget(true);
+    try {
+      setCustomAddress(address);
+      if (abi) {
+        setCustomAbiText(JSON.stringify(abi, null, 2));
+      }
+      setUseCustomTarget(true);
+      setShowCustomTarget(false);
+      addLog(`Switched target to external contract: ${address.slice(0, 10)}...`);
+    } finally {
+      setIsLoadingTarget(false);
     }
-
-    return (
-      <div key={inp.name} className="space-y-1">
-        <div className="flex items-center justify-between">
-          <label className="text-[10px] font-mono text-foreground/60">{inp.name}</label>
-          <span className="text-[9px] text-muted-foreground/40 font-mono truncate max-w-[120px]" title={inp.type}>{shortType}</span>
-        </div>
-        <input
-          placeholder={
-            isAddress(inp.type) ? "0x…" :
-            isU256(inp.type) ? "integer or 0x…" :
-            isArray(inp.type) ? "a, b, c" :
-            "felt252…"
-          }
-          value={value}
-          onChange={e => setVal(e.target.value)}
-          className="w-full bg-black/30 border border-border/50 rounded-md px-2.5 py-1.5 text-[11px] font-mono outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/10 text-foreground/80 placeholder:text-muted-foreground/30 transition-all"
-        />
-      </div>
-    );
   };
 
-  // ── function card ─────────────────────────────────────────────────────────
-  const renderFnCard = (fn: AbiEntry, isView: boolean) => {
-    const fnName = fn.name as string;
-    const inputs: Array<{ name: string; type: string }> = fn.inputs ?? [];
-    const isLoading = funcLoading[fnName];
-    const result = funcResults[fnName];
-    const error = funcErrors[fnName];
-    const hasInputs = inputs.length > 0;
-    const isExpanded = expandedFns[fnName] ?? false;
+  // ── components ──────────────────────────────────────────────────────────
 
-    return (
-      <div
-        key={fnName}
-        className={clsx(
-          "rounded-lg border transition-all duration-150",
-          isView
-            ? "border-border/50 hover:border-emerald-500/20"
-            : "border-border/50 hover:border-amber-500/20",
-          (result || error) && "border-b-0 rounded-b-none"
-        )}
-      >
-        {/* Card header */}
-        <div
-          className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
-          onClick={() => hasInputs && toggleExpand(fnName)}
-        >
-          <div className={clsx(
-            "w-1.5 h-1.5 rounded-full flex-shrink-0",
-            isView ? "bg-emerald-500" : "bg-amber-500"
-          )} />
-          <span className="text-[12px] font-mono font-medium text-foreground/85 flex-1 truncate">{fnName}</span>
-          <Badge className={clsx(
-            "text-[8px] font-bold uppercase tracking-wider px-1.5 py-0 h-4 flex-shrink-0",
-            isView
-              ? "bg-emerald-500/8 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/8"
-              : "bg-amber-500/8 text-amber-500 border-amber-500/20 hover:bg-amber-500/8"
-          )}>
-            {isView ? "read" : "write"}
-          </Badge>
-          {hasInputs && (
-            <ChevronDown className={clsx(
-              "w-3 h-3 text-muted-foreground/40 transition-transform flex-shrink-0",
-              isExpanded && "rotate-180"
-            )} />
-          )}
-        </div>
-
-        {/* Inputs (shown always if no inputs, else collapsible) */}
-        {(hasInputs ? isExpanded : true) && (
-          <div className="px-3 pb-3 space-y-3">
-            {hasInputs && (
-              <div className="space-y-2 p-2.5 rounded-md bg-black/20 border border-border/40">
-                {inputs.map(inp => renderInput(fnName, inp))}
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                onClick={() => isView ? callFn(fn) : executeFn(fn)}
-                disabled={isLoading}
-                className={clsx(
-                  "h-7 flex-1 text-[10px] font-bold uppercase tracking-wider gap-1.5",
-                  isView
-                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/15 hover:text-emerald-300"
-                    : account
-                    ? "bg-amber-500 text-black hover:bg-amber-400"
-                    : "bg-white/5 text-amber-500/60 border border-amber-500/20 hover:bg-amber-500/8 hover:text-amber-400"
-                )}
-                variant={isView || !account ? "ghost" : "default"}
-              >
-                {isLoading ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : isView ? (
-                  "Query"
-                ) : account ? (
-                  "Execute"
-                ) : (
-                  <><Shield className="w-3 h-3" />Connect</>
-                )}
-              </Button>
-              {(result || error) && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 text-muted-foreground/40 hover:text-muted-foreground hover:bg-white/5"
-                  onClick={() => {
-                    setFuncResults(prev => { const n = { ...prev }; delete n[fnName]; return n; });
-                    setFuncErrors(prev => { const n = { ...prev }; delete n[fnName]; return n; });
-                  }}
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              )}
-            </div>
-
-            {/* Result */}
-            {result && (
-              <div className="rounded-md bg-emerald-500/5 border border-emerald-500/15 p-2.5">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500/80 uppercase tracking-widest">
-                    <Check className="w-2.5 h-2.5" /> Output
-                  </div>
-                  <CopyButton
-                    text={result.extra ? `${result.decoded} (${result.extra})` : result.decoded}
-                    onCopy={() =>
-                      notify?.({
-                        tone: "success",
-                        title: "Result copied",
-                        description: `${fnName} output copied to your clipboard.`,
-                      })
-                    }
-                  />
-                </div>
-                <div className="font-mono text-[11px] text-emerald-300/80 break-all">{result.decoded}</div>
-                {result.extra && (
-                  <div className="mt-0.5 font-mono text-[9px] text-muted-foreground/50">{result.extra}</div>
-                )}
-                {result.raw.length > 1 && (
-                  <details className="mt-1.5">
-                    <summary className="text-[9px] text-muted-foreground/40 cursor-pointer hover:text-muted-foreground/70 transition-colors">raw felts</summary>
-                    <pre className="mt-1 text-[9px] font-mono text-muted-foreground/40 break-all whitespace-pre-wrap">{JSON.stringify(result.raw, null, 2)}</pre>
-                  </details>
-                )}
-              </div>
-            )}
-
-            {/* Error */}
-            {error && (
-              <div className="rounded-md bg-red-500/5 border border-red-500/15 p-2.5">
-                <div className="flex items-center gap-1 text-[9px] font-bold text-red-400/80 uppercase tracking-widest mb-1">
-                  <AlertCircle className="w-2.5 h-2.5" /> Reverted
-                </div>
-                <div className="text-[10px] font-mono text-red-300/60 leading-relaxed break-all">{error}</div>
-              </div>
+  const InteractionMetaStrip = ({ compact }: { compact?: boolean }) => (
+    <div className={clsx(
+      "flex items-center justify-between border-b border-neutral-800 bg-black/40 backdrop-blur-md px-3 flex-shrink-0",
+      compact ? "py-1.5" : "py-2.5"
+    )}>
+      <div className="flex items-center gap-4">
+        <div className="flex flex-col">
+          <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground/30 leading-none mb-1">Fee Mode</span>
+          <div className="flex items-center gap-1.5">
+            {szWallet?.mode === "sponsored" ? (
+              <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] px-1 py-0 h-4 font-bold flex items-center gap-1">
+                <Shield className="w-2.5 h-2.5" /> SPONSORED
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 font-bold border-neutral-700 text-neutral-500">STANDARD</Badge>
             )}
           </div>
-        )}
+        </div>
+        <div className="w-px h-6 bg-neutral-800/50" />
+        <div className="flex flex-col">
+          <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground/30 leading-none mb-1">Status</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)] animate-pulse" />
+            <span className="text-[10px] font-mono text-emerald-500/80 uppercase tracking-tighter">Ready</span>
+          </div>
+        </div>
       </div>
-    );
-  };
-
-  const InteractionMetaStrip = ({ compact = false }: { compact?: boolean }) => (
-    <div className={clsx(
-      "flex flex-wrap items-center gap-3",
-      compact ? "px-3 py-2 border-b border-neutral-800 bg-black/10" : "mb-5"
-    )}>
-      <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-500">StarkZap SDK</span>
-      <span className={clsx("text-[9px] font-semibold uppercase tracking-[0.16em]", walletType === "privy" ? "text-emerald-400/80" : "text-neutral-500")}>
-        {walletType === "privy" ? "Gasless" : "Gasless with Privy"}
-      </span>
-      {walletAddress && (
-        <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
-          {walletType === "privy" ? "Privy session" : "Extension wallet"}
-        </span>
+      {szWallet?.mode === "sponsored" && (
+        <div className="flex items-center gap-2">
+          <p className="text-[9px] text-muted-foreground/40 font-medium max-w-[140px] text-right leading-tight">
+            Gas costs are currently <span className="text-amber-500/80 font-bold italic underline decoration-amber-500/30 underline-offset-2">Fully Sponsored</span> by Starkzap
+          </p>
+        </div>
       )}
     </div>
   );
 
-  // ── wallet + network bar ──────────────────────────────────────────────────
+  const renderFnCard = (fn: AbiEntry, isRead: boolean) => {
+    const isExpanded = expandedFns[fn.name] || false;
+    const isLoading = funcLoading[fn.name] || false;
+    const result = funcResults[fn.name];
+    const error = funcErrors[fn.name];
+    const inputs = fn.inputs ?? [];
+
+    return (
+      <div key={fn.name} className={clsx(
+        "rounded-xl border transition-all duration-200 overflow-hidden",
+        isExpanded ? "bg-[#0c0c0c] border-neutral-700/50 shadow-lg" : "bg-[#070707] border-neutral-800 hover:border-neutral-700"
+      )}>
+        {/* Header */}
+        <div 
+          className="flex items-center justify-between px-3.5 py-2.5 cursor-pointer select-none group"
+          onClick={() => toggleExpand(fn.name)}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={clsx(
+              "w-2 h-2 rounded-full",
+              isRead ? "bg-emerald-500/50" : "bg-amber-500/50"
+            )} />
+            <span className="font-mono text-[12px] font-medium text-foreground/90 truncate group-hover:text-white transition-colors">{fn.name}</span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isLoading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground/50" />}
+            <ChevronDown className={clsx("w-3.5 h-3.5 text-muted-foreground/30 transition-transform duration-200", isExpanded && "rotate-180")} />
+          </div>
+        </div>
+
+        {/* Content */}
+        {isExpanded && (
+          <div className="px-4 pb-4 space-y-4 animate-in slide-in-from-top-1 duration-200 border-t border-neutral-800/50 pt-3">
+            {inputs.length > 0 ? (
+              <div className="space-y-3">
+                {inputs.map((inp) => (
+                  <div key={inp.name} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-mono font-medium text-muted-foreground/60">{inp.name}</label>
+                      <span className="text-[9px] font-mono text-muted-foreground/30 bg-white/5 px-1.5 py-0.5 rounded italic">{inp.type}</span>
+                    </div>
+                    <input
+                      className="w-full bg-black/40 border border-neutral-800/50 rounded-lg px-3 py-2 text-xs font-mono text-foreground/80 outline-none focus:border-amber-500/30 focus:bg-black/60 transition-all placeholder:text-muted-foreground/20"
+                      placeholder={isU256(inp.type) ? "e.g. 1000000 or 0x..." : isBool(inp.type) ? "true / false" : "Value..."}
+                      value={funcInputs[fn.name]?.[inp.name] || ""}
+                      onChange={(e) => setFuncInputs(prev => ({
+                        ...prev,
+                        [fn.name]: { ...(prev[fn.name] || {}), [inp.name]: e.target.value }
+                      }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-2">
+                <p className="text-[10px] text-muted-foreground/40 italic font-mono">No input parameters required.</p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  isRead ? handleRead(fn) : handleWrite(fn);
+                }}
+                disabled={isLoading}
+                className={clsx(
+                   "h-8 px-4 text-[11px] font-bold uppercase tracking-wider transition-all",
+                   isRead 
+                    ? "bg-emerald-500 text-black hover:bg-emerald-400" 
+                    : "bg-amber-500 text-black hover:bg-amber-400"
+                )}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  <span>{isRead ? "Query" : "Execute"}</span>
+                )}
+              </Button>
+
+              {result && (
+                <div className="flex items-center gap-2 ml-4 min-w-0">
+                  <span className="text-[10px] font-mono text-emerald-400/80 truncate">{result.decoded}</span>
+                  <CopyButton text={result.decoded} className="h-6 w-6" />
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-[10px] font-mono text-red-300/80 leading-relaxed break-all">{error}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const WalletNetworkBar = () => (
     <div className="flex items-center gap-3 px-4 py-2.5 border-b border-neutral-800 bg-black/20 flex-shrink-0">
-      {/* Network toggle */}
       {handleNetworkSwitch && (
         <div className="flex items-center p-0.5 rounded-md bg-black/30 border border-neutral-800 text-[9px] font-bold uppercase tracking-wider flex-shrink-0">
           <button
@@ -647,7 +571,6 @@ export function InteractPanel({
 
       <div className="w-px h-4 bg-border/50 flex-shrink-0" />
 
-      {/* Wallet info */}
       {walletAddress ? (
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
@@ -662,7 +585,6 @@ export function InteractPanel({
           <span className="font-mono text-[10px] text-foreground/60 truncate">
             {walletAddress.slice(0, 10)}…{walletAddress.slice(-6)}
           </span>
-          {/* Balance */}
           <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
             <Zap className="w-3 h-3 text-amber-500 fill-amber-500/50" />
             {isFetchingBalance ? (
@@ -694,7 +616,6 @@ export function InteractPanel({
     </div>
   );
 
-  // ── address bar ───────────────────────────────────────────────────────────
   const AddressBar = () => (
     <div className="flex-shrink-0 border-b border-neutral-800 bg-black/20">
       {effectiveAddress ? (
@@ -703,7 +624,7 @@ export function InteractPanel({
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.6)]" />
               <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
-                {useCustomTarget ? "External Contract" : "Deployed Contract"}
+                {useCustomTarget ? "External" : "Deployed"}
               </span>
             </div>
             <Button
@@ -741,6 +662,16 @@ export function InteractPanel({
               </TooltipTrigger>
               <TooltipContent side="top" className="text-[10px]">View on Explorer</TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger render={<button
+                  onClick={generateHooks}
+                  disabled={effectiveAbi.length === 0}
+                  className="text-muted-foreground/40 hover:text-amber-400 transition-colors p-0.5 disabled:opacity-30 disabled:cursor-not-allowed"
+                />}>
+                <Code2 className="w-3 h-3" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Generate React Hooks</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       ) : (
@@ -760,7 +691,6 @@ export function InteractPanel({
         </div>
       )}
 
-      {/* Inline load form */}
       {showCustomTarget && (
         <div className="px-3 pb-3 pt-1 border-t border-neutral-800 bg-black/10 space-y-2.5 animate-in slide-in-from-top-1 duration-150">
           <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Load Contract</div>
@@ -789,25 +719,6 @@ export function InteractPanel({
               <p className="text-[9px] text-emerald-500/70 mt-0.5">✓ {parsedCustomAbi.length} entries parsed</p>
             )}
           </div>
-          {recentDeployments.length > 0 && (
-            <div className="space-y-1">
-              <div className="text-[9px] text-muted-foreground/40 uppercase tracking-widest">Recent</div>
-              {recentDeployments.slice(0, 3).map((d: ContractHistoryItem) => (
-                <button
-                  key={d.id}
-                  onClick={() => void loadCustomTarget(d.contractAddress, normalizeAbiEntries(d.abi))}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md border border-border/40 bg-black/20 hover:border-border/70 transition-colors text-left group"
-                >
-                  <Box className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-500/50 flex-shrink-0 transition-colors" />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-[10px] text-foreground/70 font-medium truncate">{d.name || "Contract"}</span>
-                    <span className="text-[9px] font-mono text-muted-foreground/40 truncate">{d.contractAddress?.slice(0, 14)}…</span>
-                  </div>
-                  <ChevronRight className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-500/50 flex-shrink-0 transition-colors" />
-                </button>
-              ))}
-            </div>
-          )}
           <div className="flex gap-2 pt-1">
             <Button
               size="sm"
@@ -829,7 +740,6 @@ export function InteractPanel({
         </div>
       )}
 
-      {/* Tab strip */}
       <div className="flex h-8 border-t border-neutral-800 bg-black/10">
         {(["functions", "log"] as const).map(tab => (
           <button
@@ -855,7 +765,6 @@ export function InteractPanel({
     </div>
   );
 
-  // ── empty state ───────────────────────────────────────────────────────────
   if (!effectiveAddress && !showCustomTarget) {
     return (
       <div className="flex flex-col h-full">
@@ -910,7 +819,6 @@ export function InteractPanel({
     );
   }
 
-  // ── panel layout (sidebar) ────────────────────────────────────────────────
   if (!isFullscreen) {
     return (
       <div className="flex flex-col h-full">
@@ -1020,10 +928,8 @@ export function InteractPanel({
     );
   }
 
-  // ── fullscreen layout ─────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full animate-in fade-in duration-300">
-      {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-6">
         <div>
           <div>
@@ -1057,6 +963,17 @@ export function InteractPanel({
               </a>
             </div>
           )}
+          {effectiveAddress && effectiveAbi.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={generateHooks}
+              className="h-8 text-[10px] font-bold uppercase tracking-wider border border-neutral-800 text-amber-400/70 hover:text-amber-300 hover:border-amber-500/30 hover:bg-amber-500/5 gap-1.5"
+            >
+              <Code2 className="w-3 h-3" />
+              Generate Hooks
+            </Button>
+          )}
           <Button
             size="sm"
             variant="ghost"
@@ -1074,9 +991,7 @@ export function InteractPanel({
         </div>
       </div>
 
-      {/* Wallet + Network bar (fullscreen) */}
       <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-black/20 border border-neutral-800">
-        {/* Network */}
         {handleNetworkSwitch && (
           <div className="flex items-center gap-2">
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/40">Network</span>
@@ -1095,7 +1010,6 @@ export function InteractPanel({
 
         <div className="w-px h-5 bg-border/50" />
 
-        {/* Wallet */}
         {walletAddress ? (
           <div className="flex items-center gap-4 flex-1">
             <div className="flex items-center gap-2">
@@ -1139,7 +1053,6 @@ export function InteractPanel({
 
       <InteractionMetaStrip />
 
-      {/* Load external form (fullscreen) */}
       {showCustomTarget && (
         <div className="mb-6 p-5 rounded-xl bg-black/30 border border-amber-500/15 backdrop-blur-sm animate-in slide-in-from-top-2 duration-200">
           <div className="grid grid-cols-2 gap-5">
@@ -1153,25 +1066,6 @@ export function InteractPanel({
                 placeholder="0x0123… (Starknet Address)"
                 className="w-full bg-black/40 border border-border/50 rounded-lg px-3 py-2.5 text-sm font-mono outline-none focus:border-amber-500/40 text-foreground/80 placeholder:text-muted-foreground/30 transition-all"
               />
-              {recentDeployments.length > 0 && (
-                <div className="space-y-1 pt-1">
-                  <div className="text-[8px] text-muted-foreground/30 uppercase tracking-widest">Recent deployments</div>
-                  {recentDeployments.slice(0, 4).map((d: ContractHistoryItem) => (
-                    <button
-                      key={d.id}
-                      onClick={() => void loadCustomTarget(d.contractAddress, normalizeAbiEntries(d.abi))}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-black/20 border border-border/40 hover:border-border/70 hover:bg-black/30 transition-all group text-left"
-                    >
-                      <Box className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-500/60 flex-shrink-0 transition-colors" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[10px] font-medium text-foreground/70 truncate group-hover:text-foreground/90 transition-colors">{d.name || "Contract"}</div>
-                        <div className="font-mono text-[8px] text-muted-foreground/40 truncate">{d.contractAddress}</div>
-                      </div>
-                      <ChevronRight className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-400 flex-shrink-0 transition-colors" />
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
             <div className="space-y-2">
               <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
@@ -1203,7 +1097,6 @@ export function InteractPanel({
         </div>
       )}
 
-      {/* Stats row */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
           { label: "Read", value: viewFunctions.length, color: "text-emerald-400" },
@@ -1217,7 +1110,6 @@ export function InteractPanel({
         ))}
       </div>
 
-      {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-neutral-800 mb-5">
         {(["functions", "log"] as const).map(tab => (
           <button
@@ -1241,7 +1133,6 @@ export function InteractPanel({
         ))}
       </div>
 
-      {/* Content */}
       {activeSubTab === "functions" ? (
         <div className="grid grid-cols-2 gap-4">
           {viewFunctions.length > 0 && (

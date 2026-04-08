@@ -1,145 +1,108 @@
-# Unzap
+# Unzap Contract Lab
 
 <p align="center">
-  <img src="./public/brand/unzap-logo.png" alt="Unzap logo" width="108" />
+  <img src="./public/brand/unzap-logo.png" alt="Unzap logo" width="128" />
 </p>
 
 <p align="center">
-  <strong>Starkzap Dev Studio for learning Starknet by doing.</strong>
+  <strong>The Starknet Dev Studio for modern builders.</strong>
 </p>
 
 <p align="center">
-  Guided flows, live execution, contract deployment, and gasless interaction surfaces built on Starkzap.
+  Zero-setup IDE, Integrated Cairo Compiler, and Gasless Deployment powered by Starkzap.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Next.js-16.2.1-111111?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16.2.1" />
-  <img src="https://img.shields.io/badge/React-19.2.4-111111?style=flat-square&logo=react&logoColor=61DAFB" alt="React 19.2.4" />
-  <img src="https://img.shields.io/badge/Starknet-starknet.js%209-111111?style=flat-square&logoColor=white" alt="starknet.js 9" />
-  <img src="https://img.shields.io/badge/StarkZap-SDK%20v2-111111?style=flat-square&logoColor=white" alt="StarkZap SDK v2" />
-  <img src="https://img.shields.io/badge/Privy-Auth-111111?style=flat-square&logoColor=white" alt="Privy Auth" />
+  <img src="https://img.shields.io/badge/Next.js-16.2.1-black?style=for-the-badge&logo=nextdotjs" alt="Next.js" />
+  <img src="https://img.shields.io/badge/Starknet-starknet.js%20v9-3c2242?style=for-the-badge" alt="Starknet" />
+  <img src="https://img.shields.io/badge/StarkZap-SDK%20v2-fbbf24?style=for-the-badge" alt="StarkZap" />
+  <img src="https://img.shields.io/badge/Cairo-1.0-red?style=for-the-badge" alt="Cairo" />
 </p>
 
-<p align="center">
-  <img src="./public/previews/contract-lab.png" alt="Unzap Contract Lab preview" width="900" />
-</p>
+---
 
-## Overview
+## 🚀 The Vision
 
-Unzap is an interactive Starknet developer studio focused on transparency, education, and execution. Instead of treating SDK workflows like a black box, it exposes the full path from writing Cairo to declaring, deploying, interacting, and observing what happens on-chain.
+Starknet development is powerful, but onboarding is often fragmented. Developers must juggle local environment setups, manual fee management, and complex declaration/deployment flows.
 
-The product is designed around one core idea:
+**Unzap Contract Lab** solves this by providing a unified, browser-based studio that removes all local setup friction. Built (from scratch) by a Starknet beginner in just 5 days, it leverages the **Starkzap SDK** to make on-chain interactions feel like "Saved in Cloud."
 
-`Explain -> Execute -> Visualize -> Copy -> Understand`
+> [!TIP]
+> **No more local compiler issues.** No more Windows vs Linux friction. Write, Build, and Deploy from any machine.
 
-## Product Surfaces
+## ✨ Key Features
 
-### Contract Lab
+### 💻 Integrated IDE (Contract Lab)
+A high-fidelity development environment built on **CodeMirror 6**.
+- **Cairo Syntax Highlighting**: Premium dark theme tailored for Cairo's Rust-like syntax.
+- **Real-time Diagnostics**: Visual error and warning squiggles as you type.
+- **Keyboard Shortcuts**: `Ctrl+S` to build, `Ctrl+/` to comment, and more.
 
-- Write and edit Cairo contracts directly in the browser
-- Build, declare, deploy, and interact from a single workspace
-- Restore wallet sessions, deployment history, and contract interfaces
-- Show execution feedback, gasless flows, and Starknet explorer links inline
+### 🛠️ Zero-Install Compiler Sidecar
+Unzap ships with its own sidecar compiler service (Rust-based).
+- **Instant Compilation**: Converts Cairo source code into Sierra and CASM artifacts instantly.
+- **No Local Setup**: No need to install Scarb, Rust, or Starknet-compile on your machine.
 
-### Playground
+### ⚡ Gasless Flow (Starkzap SDK)
+Deeply integrated with the **Starkzap SDK** and **AVNU Paymaster**.
+- **Sponsored Declare**: Studio-sponsored declarations for known templates.
+- **Gasless Deployment**: Deploy contracts without holding STRK/ETH (uses sponsored UDC calls).
+- **Account Abstraction**: Seamless integration with **Privy** for social login and embedded accounts.
 
-- Experiment with Starkzap-powered transaction flows
-- Explore account abstraction, sponsored transactions, and interaction patterns
-- Inspect outputs and behavior in a guided environment
+### 📡 Interactive Interaction UI
+Auto-generated interface for any deployed contract.
+- **Read/Write Panels**: Instantly call any function in your ABI.
+- **Execution Terminal**: Real-time logging of transaction hashes and explorer links.
 
-### Guided and Visual Learning
+## 🖼️ Previews
 
-- Break down workflows into understandable steps
-- Surface execution states instead of hiding them behind SDK abstractions
-- Help new Starknet builders connect concepts to real actions
+![Contract Lab IDE](./public/previews/contract-lab.png)
+*Writing and compiling Cairo in the browser.*
 
-## Why Unzap
+![Interaction Interface](./public/previews/contract-lab-interact.png)
+*Interacting with deployed contracts gaslessly.*
 
-Starknet development is powerful, but onboarding often feels fragmented:
+## 🛠️ Tech Stack
 
-- Cairo authoring is separate from deployment and runtime understanding
-- Gasless and account abstraction flows can feel opaque
-- Static docs explain APIs, but not the lived execution path
+- **Frontend**: Next.js 16 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS, Framer Motion, shadcn/ui
+- **Blockchain**: Starknet.js v9, **Starkzap SDK v2**
+- **Auth**: Privy (Social Login + Embedded Wallets)
+- **Database**: Prisma + PostgreSQL (for deployment history and persistence)
 
-Unzap closes that gap with a product experience that is equal parts dev tool and learning layer.
-
-## Tech Stack
-
-- Next.js 16 App Router
-- React 19
-- TypeScript
-- Tailwind CSS
-- Framer Motion
-- Starkzap SDK v2
-- starknet.js v9
-- Privy
-- Prisma
-
-## Getting Started
+## 🏁 Getting Started
 
 ### Prerequisites
-
 - Node.js 18+
-- npm or Bun
+- Bun (recommended) or npm
 
-### Install
-
+### Local Installation
 ```bash
 git clone https://github.com/manovHacksaw/Unzap.git
 cd Unzap
-npm install
+bun install
 ```
 
-### Configure environment
-
-Create `.env.local` with the keys your local setup needs. Common ones used by the app include:
-
+### Setup Environment
+Create a `.env.local` file:
 ```env
-NEXT_PUBLIC_PRIVY_APP_ID=
-NEXT_PUBLIC_AVNU_API_KEY=
-NEXT_PUBLIC_COMPILER_URL=
-DATABASE_URL=
-DIRECT_DATABASE_URL=
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_id
+NEXT_PUBLIC_AVNU_API_KEY=your_avnu_key
+NEXT_PUBLIC_COMPILER_URL=http://localhost:8080
+DATABASE_URL=your_db_url
 ```
 
-If you are using the contract build flow locally, make sure your compiler service is available at the URL you provide in `NEXT_PUBLIC_COMPILER_URL`.
-
-For deployed/serverless environments backed by Supabase:
-
-- Set `DATABASE_URL` to the Supabase transaction pooler connection string.
-- Set `DIRECT_DATABASE_URL` to the direct database connection string for Prisma CLI, migrations, and schema tooling.
-
-### Run the app
-
+### Run the Studio
 ```bash
-npm run dev
+bun dev
 ```
+Navigate to `http://localhost:3000/studio/contract-lab`.
 
-Then open:
+## 📜 Documentation Links
+- [FEATURES.md](./FEATURES.md) - Deep dive into all capabilities.
+- [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) - How it works under the hood.
+- [JOURNEY.md](./JOURNEY.md) - The 5-day beginner journey.
+- [FUTURE_IMPROVEMENTS.md](./FUTURE_IMPROVEMENTS.md) - Roadmap and visions.
 
-- `http://localhost:3000/` for the landing page
-- `http://localhost:3000/studio` for the studio hub
-- `http://localhost:3000/studio/contract-lab` for Contract Lab
-
-### Useful scripts
-
-```bash
-npm run dev
-npm run build
-npm run lint
-```
-
-## Repository Notes
-
-- Runtime branding assets live in `app/` and `public/`
-- Local-only exports and scratch files are intentionally ignored
-- The root repo should stay production-focused and avoid committing developer machine state
-
-## Preview Assets
-
-- `public/previews/contract-lab.png`
-- `public/previews/contract-lab-interact.png`
-
-## License
-
-MIT
+## ⚖️ License
+MIT Copyright (c) 2026.
