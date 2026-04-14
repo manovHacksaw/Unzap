@@ -16,6 +16,7 @@ import {
   Plus,
   RefreshCw,
   Shield,
+  Sparkles,
   X,
   Zap,
   Activity,
@@ -743,6 +744,27 @@ export function InteractPanel({
               <TooltipContent side="top" className="text-[10px]">View on Explorer</TooltipContent>
             </Tooltip>
           </div>
+
+          {/* Starter app CTA — shown when a real contract is loaded */}
+          {!useCustomTarget && effectiveAbi.length > 0 && (
+            <button
+              onClick={() => {
+                try {
+                  localStorage.setItem(
+                    `unzap:workspace-abi:${effectiveAddress.toLowerCase()}`,
+                    JSON.stringify(effectiveAbi)
+                  );
+                } catch { /* ignore */ }
+                const name = activeFileName?.replace(/\.cairo$/, "") ?? "MyContract";
+                const url = `/studio/project-workspace?address=${encodeURIComponent(effectiveAddress)}&network=${network ?? "sepolia"}&name=${encodeURIComponent(name)}`;
+                window.open(url, "_blank");
+              }}
+              className="w-full mt-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-bold tracking-wide bg-gradient-to-r from-violet-600/80 to-indigo-600/80 hover:from-violet-500 hover:to-indigo-500 text-white transition-all"
+            >
+              <Sparkles className="w-3 h-3" />
+              Get Starter App
+            </button>
+          )}
         </div>
       ) : (
         <div className="px-3 py-2 flex items-center justify-between">
