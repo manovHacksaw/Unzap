@@ -2,7 +2,7 @@ import type { StarkZap } from "starkzap";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-export const COMPILER_URL = process.env.NEXT_PUBLIC_COMPILER_URL ?? "https://gallant-peace-production-7e77.up.railway.app";
+export const COMPILER_URL = "/api";
 export const CONTRACT_LAB_DRAFT_KEY = "unzap:contract-lab:draft";
 export const CONTRACT_LAB_SETTINGS_KEY = "unzap:contract-lab:settings";
 export const CONTRACT_LAB_WALLET_SESSION_KEY = "unzap:contract-lab:wallet-session";
@@ -23,6 +23,8 @@ trait ISimpleStorage<TContractState> {
 
 #[starknet::contract]
 mod SimpleStorage {
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+
     #[storage]
     struct Storage {
         stored_value: felt252,

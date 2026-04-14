@@ -1,36 +1,14 @@
-import type { NextConfig } from "next";
 import path from "path";
 
 const root = process.cwd();
 
-// Stubs are now handled via tsconfig.json paths for better cross-bundler compatibility.
-const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          // Required by Privy for popup-based OAuth flows (prevents 404 on COOP check)
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
-        ],
-      },
-    ];
-  },
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
-    ],
-  },
-  transpilePackages: ["starkzap", "ethers"],
-  productionBrowserSourceMaps: false,
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // starkzap and ethers ship as ESM — Next.js must transpile them
+  transpilePackages: ["starknet", "starkzap", "ethers"],
 
-  // Turbopack — used by `next dev` in Next.js 16+
+  // Next.js 16 uses Turbopack by default. 
+  // Silence the 'webpack config with no turbopack config' error and add stubs.
   turbopack: {
     resolveAlias: {
       "@hyperlane-xyz/sdk": "./lib/stubs/generic.ts",
@@ -44,18 +22,16 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // Webpack — used by `next build` and Vercel
   webpack: (config) => {
-    // These heavy libraries cause multi-minute compilation hangs in Webpack
-    // due to nested WASM or massive dependency chains. We stub them here.
+    // starkzap → @hyperlane-xyz/* → @provablehq/wasm causes a multi-minute
+    // compilation hang. Stub the whole hyperlane chain — it's not used at runtime.
     config.resolve.alias = {
       ...config.resolve.alias,
       "@hyperlane-xyz/sdk": path.join(root, "./lib/stubs/generic.ts"),
       "@hyperlane-xyz/registry": path.join(root, "./lib/stubs/generic.ts"),
       "@hyperlane-xyz/utils": path.join(root, "./lib/stubs/generic.ts"),
       "@arbitrum/sdk": path.join(root, "./lib/stubs/generic.ts"),
-      "@solana/web3.js": path.join(root, "./lib/stubs/generic.ts"),
-      "@fatsolutions/tongo-sdk": path.join(root, "./lib/stubs/generic.ts"),
+      // Privy's Solana adapter — not needed for Starknet
       "@farcaster/mini-app-solana": path.join(root, "./lib/stubs/generic.ts"),
       "@cartridge/controller": path.join(root, "./lib/stubs/generic.ts"),
     };
@@ -67,7 +43,25 @@ const nextConfig: NextConfig = {
       tls: false,
     };
 
+    config.experiments = {
+      ...config.experiments,
+      topLevelAwait: true,
+    };
+
     return config;
+  },
+
+  async headers() {
+    return [
+      {
+        // Privy OAuth popup flows require this COOP policy on every page.
+        // Without it, Privy logs "Cross-Origin-Opener-Policy policy would block..."
+        source: "/(.*)",
+        headers: [
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+        ],
+      },
+    ];
   },
 };
 

@@ -24,6 +24,8 @@ trait ISimpleStorage<TContractState> {
 
 #[starknet::contract]
 mod SimpleStorage {
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+
     #[storage]
     struct Storage {
         stored_value: felt252,
@@ -62,7 +64,7 @@ trait IVoting<TContractState> {
 #[starknet::contract]
 mod Voting {
     use starknet::{ContractAddress, get_caller_address};
-    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess, StoragePointerWriteAccess};
 
     #[storage]
     struct Storage {
@@ -128,7 +130,7 @@ trait IERC20<TContractState> {
 #[starknet::contract]
 mod ERC20 {
     use starknet::{ContractAddress, get_caller_address};
-    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess, StoragePointerWriteAccess};
 
     #[storage]
     struct Storage {
@@ -200,7 +202,7 @@ trait IERC721<TContractState> {
 #[starknet::contract]
 mod MyNFT {
     use starknet::{ContractAddress, get_caller_address};
-    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess, StoragePointerWriteAccess};
 
     #[storage]
     struct Storage {
@@ -297,6 +299,7 @@ mod AssetDistributor {
         NftTransfer, TokenTransfer,
     };
     use starknet::{ContractAddress, get_caller_address, get_contract_address};
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 
     #[storage]
     struct Storage {

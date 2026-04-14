@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "postinstall": "prisma generate",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=4096' next build --webpack",
     "start": "next start",
     "lint": "eslint",
@@ -33,6 +34,7 @@
     "cross-env": "^10.1.0",
     "ethers": "^6.13.0",
     "framer-motion": "^12.38.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.7.0",
     "next": "16.2.1",
     "pg": "^8.13.0",
@@ -40,6 +42,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "shadcn": "^4.1.2",
+    "shiki": "^4.0.2",
     "starknet": "^9.4.2",
     "starkzap": "^2.0.0",
     "tailwind-merge": "^3.5.0",

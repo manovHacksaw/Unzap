@@ -33,6 +33,13 @@ const features: BentoItem[] = [
     comingSoon: true,
   },
   {
+    title: "Hook Generator",
+    description: "Paste any deployed contract ABI and get typed React hooks powered by Starkzap — ready to drop into your dapp.",
+    href: "/studio/hook-gen",
+    className: "min-h-[250px]",
+    status: "Live",
+  },
+  {
     title: "Visualizer",
     description: "See the unseen. Break down transaction lifecycles and understand complex state changes visually.",
     href: "/studio/visualizer",

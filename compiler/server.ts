@@ -17,6 +17,7 @@ function scarbToml(): string {
   return `[package]
 name = "contract"
 version = "0.1.0"
+edition = "2024_07"
 
 [dependencies]
 starknet = ">=2.9.2"
