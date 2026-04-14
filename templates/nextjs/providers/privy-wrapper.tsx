@@ -6,7 +6,7 @@ import { StarkZap, OnboardStrategy, accountPresets } from 'starkzap';
 import { WalletAccount, Account } from 'starknet';
 import { connect as connectStarknet } from '@starknet-io/get-starknet';
 import { WalletContext } from '@/hooks/wallet';
-import { RPC_URL } from '@/lib/contract';
+import { RPC_URL, NETWORK } from '@/lib/contract';
 
 function PrivyWalletProvider({ children }: { children: ReactNode }) {
   const { authenticated, getAccessToken, logout } = usePrivy();
@@ -21,7 +21,7 @@ function PrivyWalletProvider({ children }: { children: ReactNode }) {
   const sdk = useMemo(
     () =>
       new StarkZap({
-        network: 'sepolia',
+        network: NETWORK,
         rpcUrl: RPC_URL,
         paymaster: {
           headers: {

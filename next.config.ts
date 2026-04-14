@@ -29,6 +29,21 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ["starkzap", "ethers"],
   productionBrowserSourceMaps: false,
+
+  // Turbopack — used by `next dev` in Next.js 16+
+  turbopack: {
+    resolveAlias: {
+      "@hyperlane-xyz/sdk": "./lib/stubs/generic.ts",
+      "@hyperlane-xyz/registry": "./lib/stubs/generic.ts",
+      "@hyperlane-xyz/utils": "./lib/stubs/generic.ts",
+      "@arbitrum/sdk": "./lib/stubs/generic.ts",
+      "@solana/web3.js": "./lib/stubs/generic.ts",
+      "@fatsolutions/tongo-sdk": "./lib/stubs/generic.ts",
+      "@farcaster/mini-app-solana": "./lib/stubs/generic.ts",
+      "@cartridge/controller": "./lib/stubs/generic.ts",
+    },
+  },
+
   // Webpack — used by `next build` and Vercel
   webpack: (config) => {
     // These heavy libraries cause multi-minute compilation hangs in Webpack
