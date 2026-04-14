@@ -1,23 +1,20 @@
 import type { NextConfig } from "next";
-import path from "path";
 
-// Absolute paths for webpack (works cross-platform)
-const webpackStubs = {
-  "@arbitrum/sdk": path.resolve(process.cwd(), "./lib/stubs/arbitrum-sdk.ts"),
-  "@hyperlane-xyz/sdk": path.resolve(process.cwd(), "./lib/stubs/hyperlane-sdk.ts"),
-  "@hyperlane-xyz/registry": path.resolve(process.cwd(), "./lib/stubs/hyperlane-registry.ts"),
-};
-
-// Turbopack on Windows does NOT support absolute paths in resolveAlias — use relative paths
-const turbopackStubs = {
-  "@arbitrum/sdk": "./lib/stubs/arbitrum-sdk.ts",
-  "@hyperlane-xyz/sdk": "./lib/stubs/hyperlane-sdk.ts",
-  "@hyperlane-xyz/registry": "./lib/stubs/hyperlane-registry.ts",
-};
-
+// Stubs are now handled via tsconfig.json paths for better cross-bundler compatibility.
 const nextConfig: NextConfig = {
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          // Required by Privy for popup-based OAuth flows (prevents 404 on COOP check)
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+        ],
+      },
+    ];
   },
   images: {
     remotePatterns: [
@@ -29,14 +26,8 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ["starkzap", "ethers"],
   productionBrowserSourceMaps: false,
-  // Turbopack — used by `next dev`
-  turbopack: {
-    resolveAlias: turbopackStubs,
-  },
   // Webpack — used by `next build` and Vercel
   webpack: (config) => {
-    Object.assign(config.resolve.alias, webpackStubs);
-
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,

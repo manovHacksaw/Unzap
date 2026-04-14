@@ -168,6 +168,17 @@ export function InteractPanel({
   const navigateToProjectWorkspace = () => {
     const name = activeFileName?.replace(/\.cairo$/, "") || "MyContract";
     const classHash = recentDeployments.find(d => d.contractAddress.toLowerCase() === effectiveAddress.toLowerCase())?.classHash || "";
+
+    // Persist ABI so the workspace page can read it even if history hasn't synced
+    if (effectiveAbi.length > 0) {
+      try {
+        localStorage.setItem(
+          `unzap:workspace-abi:${effectiveAddress.toLowerCase()}`,
+          JSON.stringify(effectiveAbi)
+        );
+      } catch (_) {}
+    }
+
     const query = new URLSearchParams({
       address: effectiveAddress,
       name,

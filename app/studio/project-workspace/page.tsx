@@ -31,6 +31,16 @@ type FileNode = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+function safeParseJSON<T>(json: string | null, fallback: T): T {
+  if (!json) return fallback;
+  try {
+    const parsed = JSON.parse(json);
+    return parsed as T;
+  } catch (_) {
+    return fallback;
+  }
+}
+
 function buildFileTree(files: Record<string, string>): FileNode[] {
   const root: FileNode[] = [];
 
@@ -124,23 +134,29 @@ export default function ProjectWorkspacePage() {
       addLog("Initializing Project Workspace...");
       
       try {
-        // In a real app, we'd fetch the ABI from the address or state
-        // For now, we'll try to find it in localStorage 'unzap:history'
-        const historyStr = localStorage.getItem("unzap:history");
-        let abi = [];
-        if (historyStr) {
-          const history = JSON.parse(historyStr);
-          const found = history.deployments?.find((d: any) => 
+        let abi: any[] = [];
+
+        // 1. Check the key written by InteractPanel just before opening this tab
+        const directAbiStr = localStorage.getItem(`unzap:workspace-abi:${address.toLowerCase()}`);
+        if (directAbiStr) {
+          const parsed = safeParseJSON<any[]>(directAbiStr, []);
+          if (Array.isArray(parsed) && parsed.length > 0) abi = parsed;
+        }
+
+        // 2. Fall back to the history cache (populated after deploy + auth)
+        if (abi.length === 0) {
+          const historyStr = localStorage.getItem("unzap:history");
+          const history = safeParseJSON<any>(historyStr, { deployments: [] });
+          const found = history.deployments?.find((d: any) =>
             d.contractAddress.toLowerCase() === address.toLowerCase()
           );
           if (found) {
-             // ABI is stored as a JSON string in the history object
-             abi = typeof found.abi === "string" ? JSON.parse(found.abi) : found.abi;
+            abi = typeof found.abi === "string" ? safeParseJSON(found.abi, []) : (found.abi || []);
           }
         }
 
         if (!abi || abi.length === 0) {
-          addLog("⚠️ ABI not found in local history. Re-deploy or check address.");
+          addLog("⚠️ ABI not found. Re-open from the Interact panel to include it.");
         } else {
           addLog(`✅ ABI discovered: ${abi.length} entries`);
         }
@@ -187,15 +203,20 @@ export default function ProjectWorkspacePage() {
     setIsGenerating(true);
     addLog("Compressing project files...");
     try {
-      const historyStr = localStorage.getItem("unzap:history");
-      let abi = [];
-      if (historyStr) {
-        const history = JSON.parse(historyStr);
-        const found = history.deployments?.find((d: any) => 
+      let abi: any[] = [];
+      const directAbiStr2 = localStorage.getItem(`unzap:workspace-abi:${address?.toLowerCase()}`);
+      if (directAbiStr2) {
+        const parsed = safeParseJSON<any[]>(directAbiStr2, []);
+        if (Array.isArray(parsed) && parsed.length > 0) abi = parsed;
+      }
+      if (abi.length === 0) {
+        const historyStr = localStorage.getItem("unzap:history");
+        const history = safeParseJSON<any>(historyStr, { deployments: [] });
+        const found = history.deployments?.find((d: any) =>
           d.contractAddress.toLowerCase() === address?.toLowerCase()
         );
         if (found) {
-          abi = typeof found.abi === "string" ? JSON.parse(found.abi) : found.abi;
+          abi = typeof found.abi === "string" ? safeParseJSON(found.abi, []) : (found.abi || []);
         }
       }
 

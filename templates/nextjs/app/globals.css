@@ -1,9 +1,5 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: dark;
-}
-
 *,
 *::before,
 *::after {
@@ -15,21 +11,20 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #0a0a0a;
-  color: #d4d4d8;
+  background: #f9fafb;
+  color: #111827;
   font-family: system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
-  font-size: 13px;
+  font-size: 14px;
 }
 
-/* Scrollbar — subtle, IDE-style */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 input[type="text"],
 input[type="number"],
 textarea {
-  font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", monospace;
+  font-family: ui-monospace, monospace;
 }

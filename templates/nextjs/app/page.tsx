@@ -1,135 +1,103 @@
-"use client";
+'use client';
 
-import { useState, useCallback } from "react";
-import { useStarkzap } from "@/hooks/use{{PASCAL_NAME}}";
-import { ContractUI } from "@/components/ContractUI";
-import { LogsPanel, type LogEntry } from "@/components/LogsPanel";
+import { useState, useCallback } from 'react';
+import { Header } from '@/components/Header';
+import { Overview } from '@/components/Overview';
+import { Actions } from '@/components/Actions';
+import { Data } from '@/components/Data';
+import { Activity } from '@/components/Activity';
+import { SetupGuide } from '@/components/SetupGuide';
+import { useWallet } from '@/hooks/wallet';
 
-// ── TopBar ────────────────────────────────────────────────────────────────────
-// IDE-style header. Wallet connection lives here, not in ContractUI.
-// ContractUI only reads wallet state — it never initiates connection.
+type LogType = 'call' | 'result' | 'tx' | 'error' | 'info';
 
-function TopBar() {
-  const { address, connectWallet } = useStarkzap();
-
-  return (
-    <div
-      style={{
-        height: "36px",
-        borderBottom: "1px solid #1e1e1e",
-        backgroundColor: "#0d0d0d",
-        display: "flex",
-        alignItems: "center",
-        padding: "0 16px",
-        gap: "12px",
-        flexShrink: 0,
-      }}
-    >
-      {/* Left: contract identity */}
-      <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "12px", color: "#d4d4d8", fontWeight: 500 }}>
-        {{CONTRACT_NAME}}
-      </span>
-
-      <span style={{ color: "#2a2a2a" }}>·</span>
-
-      <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "11px", color: "#52525b" }}>
-        {{NETWORK}}
-      </span>
-
-      <span style={{ color: "#2a2a2a" }}>·</span>
-
-      <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "11px", color: "#52525b" }}>
-        {{SHORT_ADDRESS}}
-      </span>
-
-      <span style={{ color: "#2a2a2a" }}>·</span>
-
-      {/* Live status indicator */}
-      <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-        <span
-          style={{
-            width: "6px",
-            height: "6px",
-            borderRadius: "50%",
-            backgroundColor: "#4ade80",
-            boxShadow: "0 0 6px rgba(74,222,128,0.5)",
-          }}
-        />
-        <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "10px", color: "#4ade8066", letterSpacing: "0.05em" }}>
-          live
-        </span>
-      </span>
-
-      {/* Right: wallet */}
-      <div style={{ marginLeft: "auto" }}>
-        {address ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ width: "5px", height: "5px", borderRadius: "50%", backgroundColor: "#4ade80" }} />
-            <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "11px", color: "#71717a" }}>
-              {address.slice(0, 10)}&hellip;{address.slice(-4)}
-            </span>
-          </div>
-        ) : (
-          <button
-            onClick={connectWallet}
-            style={{
-              fontFamily: "ui-monospace, monospace",
-              fontSize: "11px",
-              color: "#f59e0b",
-              background: "none",
-              border: "1px solid #292215",
-              borderRadius: "4px",
-              padding: "3px 10px",
-              cursor: "pointer",
-              transition: "border-color 0.15s, color 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              const btn = e.currentTarget;
-              btn.style.borderColor = "#78450c";
-              btn.style.color = "#fbbf24";
-            }}
-            onMouseLeave={(e) => {
-              const btn = e.currentTarget;
-              btn.style.borderColor = "#292215";
-              btn.style.color = "#f59e0b";
-            }}
-          >
-            connect wallet
-          </button>
-        )}
-      </div>
-    </div>
-  );
+interface LogEntry {
+  id: string;
+  type: LogType;
+  text: string;
+  timestamp: number;
 }
 
-// ── page ──────────────────────────────────────────────────────────────────────
-
 export default function Home() {
+  const { address } = useWallet();
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const addLog = useCallback(
-    (entry: Omit<LogEntry, "id" | "timestamp">) => {
+    (type: LogType, text: string) => {
       setLogs((prev) => [
-        ...prev.slice(-199),
-        { ...entry, id: Math.random().toString(36).slice(2), timestamp: Date.now() },
+        ...prev.slice(-19),
+        { 
+          id: Math.random().toString(36).slice(2), 
+          type, 
+          text, 
+          timestamp: Date.now() 
+        },
       ]);
     },
     []
   );
 
-  const clearLogs = useCallback(() => setLogs([]), []);
-
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#0a0a0a", overflow: "hidden" }}>
-      <TopBar />
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-zinc-100/10">
+      <Header contractName="{{CONTRACT_NAME}}" />
 
-      <main style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ maxWidth: "680px", margin: "0 auto", padding: "24px 20px" }}>
-          <ContractUI onLog={addLog} />
+      <main className="max-w-[1400px] mx-auto px-8 py-12 space-y-12">
+        <Overview contractName="{{CONTRACT_NAME}}" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Main Content */}
+          <div className="lg:col-span-8 space-y-12">
+            
+            {/* Write Actions */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-zinc-100 shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                  Execute Commands
+                </h2>
+              </div>
+              <div className="bg-zinc-900/10 border border-zinc-900 rounded-[2.5rem] overflow-hidden">
+                <Actions onLog={addLog} walletConnected={!!address} />
+              </div>
+            </section>
+
+            {/* Read Data */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-zinc-500 shadow-[0_0_8px_rgba(113,113,122,0.4)]" />
+                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                  Contract Status
+                </h2>
+              </div>
+              <div className="bg-zinc-900/10 border border-zinc-900 rounded-[2.5rem] overflow-hidden">
+                <Data />
+              </div>
+            </section>
+          </div>
+
+          {/* Sidebar */}
+          <aside className="lg:col-span-4 space-y-12">
+             <section className="space-y-6 h-[500px]">
+               <Activity logs={logs} />
+             </section>
+
+             <section className="space-y-6">
+               <SetupGuide />
+             </section>
+          </aside>
         </div>
       </main>
 
-      <LogsPanel logs={logs} onClear={clearLogs} />
+      {/* Footer */}
+      <footer className="border-t border-zinc-900 py-12 px-8 mt-12">
+        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+          <p>© 2026 Powered by Unzap Protocol</p>
+          <div className="flex gap-8">
+            <a href="https://unzap.dev" className="hover:text-zinc-400 transition-colors">Documentation</a>
+            <a href="https://github.com/manovHacksaw/Unzap" className="hover:text-zinc-400 transition-colors">GitHub</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

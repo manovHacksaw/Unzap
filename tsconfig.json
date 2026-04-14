@@ -19,7 +19,12 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@avnu/avnu-sdk": ["./lib/stubs/avnu-sdk.ts"],
+      "@cartridge/controller": ["./lib/stubs/generic.ts"],
+      "@hyperlane-xyz/*": ["./lib/stubs/generic.ts"],
+      "@arbitrum/sdk": ["./lib/stubs/generic.ts"],
+      "@farcaster/mini-app-solana": ["./lib/stubs/generic.ts"]
     }
   },
   "include": [
@@ -30,5 +35,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "templates"]
 }
