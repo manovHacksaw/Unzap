@@ -493,27 +493,77 @@ export function useContractDeploy({
           entrypoint: UDC_ENTRYPOINT,
           calldata: [classHash, effectiveSalt, "1", String(calldata.length), ...calldata],
         };
-        const tx = await szWallet.execute([udcCall], { feeMode: "sponsored" });
-        txHash = tx.hash;
-        setDeployStep("sign", "done", `tx: ${tx.hash.slice(0, 10)}...`);
-        addLog(`Deploy tx (gasless): ${tx.hash}`);
-        setDeployStep("broadcast", "active");
+
+        let usedSponsor = true;
+        let privyTx: { hash: string; wait: () => Promise<unknown> } | null = null;
+
         try {
-          await Promise.race([
-            tx.wait(),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("timeout")), TX_TIMEOUT_MS)
-            ),
-          ]);
-        } catch (waitErr) {
-          if ((waitErr as Error).message === "timeout") {
-            throw new Error(
-              `Transaction timed out after ${TX_TIMEOUT_LABEL}. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${tx.hash}`
-            );
-          }
-          throw waitErr;
+          // Attempt gasless deploy via AVNU paymaster (requires SNIP-9)
+          privyTx = await szWallet.execute([udcCall], { feeMode: "sponsored" });
+          addLog(`Deploy tx (gasless): ${privyTx.hash}`);
+        } catch (paymasterErr) {
+          const paymasterMsg = paymasterErr instanceof Error ? paymasterErr.message : String(paymasterErr);
+          const isSnip9Error =
+            paymasterMsg.toLowerCase().includes("snip-9") ||
+            paymasterMsg.toLowerCase().includes("not compatible") ||
+            paymasterMsg.toLowerCase().includes("outside_execution");
+
+          if (!isSnip9Error) throw paymasterErr;
+
+          // SNIP-9 not supported — fall back to self-funded via starknetAccount
+          usedSponsor = false;
+          addLog(`Gasless unavailable (SNIP-9). Falling back to self-funded deploy…`);
+          pushToast({
+            tone: "info",
+            title: "Gasless unavailable",
+            description: "Your account doesn't support SNIP-9. Deploying with your own STRK balance.",
+          });
         }
-        setDeployStep("broadcast", "done");
+
+        if (usedSponsor && privyTx) {
+          txHash = privyTx.hash;
+          setDeployStep("sign", "done", `tx: ${privyTx.hash.slice(0, 10)}...`);
+          setDeployStep("broadcast", "active");
+          try {
+            await Promise.race([
+              privyTx.wait(),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("timeout")), TX_TIMEOUT_MS)
+              ),
+            ]);
+          } catch (waitErr) {
+            if ((waitErr as Error).message === "timeout") {
+              throw new Error(
+                `Transaction timed out after ${TX_TIMEOUT_LABEL}. Check: ${netConfig.explorer}/tx/${privyTx.hash}`
+              );
+            }
+            throw waitErr;
+          }
+          setDeployStep("broadcast", "done");
+        } else {
+          // Self-funded fallback for Privy wallet (no SNIP-9)
+          const fallbackResult = await (starknetAccount as Account).deployContract({
+            classHash,
+            constructorCalldata: calldata,
+            salt: effectiveSalt,
+            unique: true,
+          }, { version: 1 });
+          txHash = fallbackResult.transaction_hash;
+          setDeployStep("sign", "done", `tx: ${fallbackResult.transaction_hash.slice(0, 10)}... (self-funded)`);
+          addLog(`Deploy tx (self-funded): ${fallbackResult.transaction_hash}`);
+          setDeployStep("broadcast", "active");
+          try {
+            await waitForTx(fallbackResult.transaction_hash);
+          } catch (waitErr) {
+            if ((waitErr as Error).message === "timeout") {
+              throw new Error(
+                `Transaction timed out after ${TX_TIMEOUT_LABEL}. Check: ${netConfig.explorer}/tx/${fallbackResult.transaction_hash}`
+              );
+            }
+            throw waitErr;
+          }
+          setDeployStep("broadcast", "done");
+        }
       } else {
         const deployResult = await (starknetAccount as Account).deployContract({
           classHash,
@@ -530,7 +580,7 @@ export function useContractDeploy({
         } catch (waitErr) {
           if ((waitErr as Error).message === "timeout") {
             throw new Error(
-              `Transaction timed out after ${TX_TIMEOUT_LABEL}. The paymaster may be out of gas or the network is congested. Check the tx on explorer: ${netConfig.explorer}/tx/${deployResult.transaction_hash}`
+              `Transaction timed out after ${TX_TIMEOUT_LABEL}. Check: ${netConfig.explorer}/tx/${deployResult.transaction_hash}`
             );
           }
           throw waitErr;
