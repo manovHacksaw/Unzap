@@ -50,26 +50,28 @@ export function buildReadSection(fn: AbiEntry, contractName: string): string {
 
   const paramsJsx = hasParams
     ? `
-        {/* param inputs */}
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "10px" }}>
+        <div className="flex gap-2 flex-wrap mt-4">
 ${fn.inputs!
   .map(
-    (i) => `          <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, minWidth: "120px" }}>
-            <label style={{ fontFamily: "ui-monospace, monospace", fontSize: "10px", color: "#52525b", letterSpacing: "0.06em" }}>
-              ${i.name}&nbsp;<span style={{ color: "#3f3f46" }}>${shortType(i.type)}</span>
+    (i) => `          <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
+            <label className="font-mono text-[10px] uppercase tracking-widest text-zinc-600 font-bold ml-1">
+              ${i.name} <span className="text-zinc-800 italic">(${shortType(i.type)})</span>
             </label>
             <input
               value={${toCamel(i.name)}}
               onChange={(e) => set${toPascal(i.name)}(e.target.value)}
-              placeholder="${i.name}"
+              placeholder="Value"
               onKeyDown={(e) => e.key === "Enter" && handleRefetch()}
-              style={inputStyle}
+              className="bg-black/40 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 outline-none focus:border-orange-500/30 transition-all"
             />
           </div>`
   )
   .join("\n")}
-          <button onClick={handleRefetch} style={{ ...ghostBtnStyle, alignSelf: "flex-end", marginBottom: "0" }}>
-            run
+          <button 
+            onClick={handleRefetch} 
+            className="self-end mb-0 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 h-[42px] px-4 rounded-xl text-xs font-bold uppercase tracking-widest"
+          >
+            Run
           </button>
         </div>`
     : "";
@@ -77,26 +79,34 @@ ${fn.inputs!
   return `
 function ${toPascal(fn.name)}Row() {
   const log = useLog();
-  const { data, loading, error, refetch } = ${hook}(${hookCall});
-${stateDecls ? stateDecls + "\n" : ""}${logSetup}
+${stateDecls ? stateDecls + "\n" : ""}  const { data, loading, error, refetch } = ${hook}(${hookCall});
+${logSetup}
 
   return (
-    <div style={rowStyle}>
-      {/* row header */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <span style={fnNameStyle}>${fn.name}</span>
-        <span style={readBadgeStyle}>view</span>
+    <div className="bg-zinc-900/40 border-b border-zinc-800/50 p-6 last:border-0 hover:bg-zinc-900/60 transition-colors group">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]" />
+          <span className="font-mono text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">${fn.name}</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/60 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">view</span>
+        </div>
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
-          {!loading && data !== null && data !== undefined && (
-            <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "11px", color: "#a1a1aa", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {String(data)}
-            </span>
-          )}
-          {loading && <span style={{ fontSize: "11px", color: "#3f3f46" }}>…</span>}
-          {error && <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "10px", color: "#f87171" }} title={error}>error</span>}
-          <button onClick={handleRefetch} style={refreshBtnStyle} title="Refresh">
-            ↻
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col items-end">
+            {!loading && data !== null && data !== undefined && (
+              <span className="font-mono text-[13px] text-emerald-500 font-medium max-w-[200px] truncate">
+                {String(data)}
+              </span>
+            )}
+            {loading && <span className="text-xs text-zinc-600 animate-pulse">Querying...</span>}
+            {error && <span className="text-[10px] font-mono text-red-500" title={error}>Error</span>}
+          </div>
+          <button 
+            onClick={handleRefetch} 
+            className="text-zinc-600 hover:text-white transition-colors p-1"
+            title="Refresh"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
           </button>
         </div>
       </div>
@@ -133,77 +143,95 @@ export function buildWriteSection(fn: AbiEntry, contractName: string): string {
 
   const paramsJsx = fn.inputs?.length
     ? `
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "flex-end", marginTop: "10px" }}>
+        <div className="flex gap-2 flex-wrap items-end mt-4">
 ${fn.inputs
   .map(
-    (i) => `          <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, minWidth: "120px" }}>
-            <label style={{ fontFamily: "ui-monospace, monospace", fontSize: "10px", color: "#52525b", letterSpacing: "0.06em" }}>
-              ${i.name}&nbsp;<span style={{ color: "#3f3f46" }}>${shortType(i.type)}</span>
+    (i) => `          <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
+            <label className="font-mono text-[10px] uppercase tracking-widest text-zinc-600 font-bold ml-1">
+              ${i.name} <span className="text-zinc-800 italic">(${shortType(i.type)})</span>
             </label>
             <input
               value={${toCamel(i.name)}}
               onChange={(e) => set${toPascal(i.name)}(e.target.value)}
-              placeholder="${i.name}"
+              placeholder="Value"
               onKeyDown={(e) => e.key === "Enter" && !isDisabled && handleExecute()}
-              style={inputStyle}
+              className="bg-black/40 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 outline-none focus:border-orange-500/30 transition-all"
             />
           </div>`
   )
   .join("\n")}
-          <div style={{ position: "relative" }} className="exec-wrap">
+          <div className="relative group/exec">
             <button
               onClick={handleExecute}
               disabled={isDisabled}
-              style={{ ...execBtnStyle, opacity: isDisabled ? 0.35 : 1, cursor: isDisabled ? "not-allowed" : "pointer" }}
+              className="bg-orange-600 hover:bg-orange-500 text-white h-[42px] px-6 rounded-xl text-xs font-bold uppercase tracking-widest transition-all disabled:opacity-20 disabled:grayscale shadow-lg shadow-orange-900/10 flex items-center gap-2"
             >
-              {isPending ? "…" : "↗ execute"}
+              {isPending ? <span className="animate-pulse">...</span> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg> Execute</>}
             </button>
-            {!address && <div className="exec-tooltip">connect wallet to execute</div>}
+            {!address && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-zinc-800 text-[10px] text-white rounded-lg opacity-0 pointer-events-none group-hover/exec:opacity-100 transition-opacity whitespace-nowrap border border-zinc-700 font-bold uppercase tracking-widest">
+                Connect wallet to execute
+              </div>
+            )}
           </div>
         </div>`
     : `
-        <div style={{ marginTop: "10px", position: "relative" }} className="exec-wrap">
+        <div className="mt-4 relative group/exec">
           <button
             onClick={handleExecute}
             disabled={isDisabled}
-            style={{ ...execBtnStyle, opacity: isDisabled ? 0.35 : 1, cursor: isDisabled ? "not-allowed" : "pointer" }}
+            className="bg-orange-600 hover:bg-orange-500 text-white h-[42px] px-6 rounded-xl text-xs font-bold uppercase tracking-widest transition-all disabled:opacity-20 disabled:grayscale shadow-lg shadow-orange-900/10 flex items-center gap-2"
           >
-            {isPending ? "…" : "↗ execute"}
+            {isPending ? <span className="animate-pulse">...</span> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg> Execute</>}
           </button>
-          {!address && <div className="exec-tooltip">connect wallet to execute</div>}
+          {!address && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-zinc-800 text-[10px] text-white rounded-lg opacity-0 pointer-events-none group-hover/exec:opacity-100 transition-opacity whitespace-nowrap border border-zinc-700 font-bold uppercase tracking-widest">
+                Connect wallet to execute
+              </div>
+            )}
         </div>`;
 
   return `
 function ${toPascal(fn.name)}Row() {
   const log = useLog();
   const { execute, status, txHash, error, reset } = ${hook}();
-  const { address } = useStarkzap();
+  const { address } = useWallet();
 ${stateDecls ? stateDecls + "\n" : ""}
   const isPending = status === "pending";
   const isDisabled = !address || isPending;
 ${logSetup}
 
   return (
-    <div style={rowStyle}>
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <span style={fnNameStyle}>${fn.name}</span>
-        <span style={writeBadgeStyle}>external</span>
-        {txHash && (
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ width: "5px", height: "5px", borderRadius: "50%", backgroundColor: "#4ade80" }} />
-            <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "10px", color: "#4ade8099", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {txHash.slice(0, 18)}…
+    <div className="bg-zinc-900/40 border-b border-zinc-800/50 p-6 last:border-0 hover:bg-zinc-900/60 transition-colors group">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-1.5 h-1.5 rounded-full bg-orange-500/40 shadow-[0_0_8px_rgba(249,115,22,0.2)]" />
+          <span className="font-mono text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">${fn.name}</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-orange-500/60 bg-orange-500/5 px-2 py-0.5 rounded border border-orange-500/10">external</span>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {txHash && (
+            <div className="flex items-center gap-2">
+              <span className="w-1 h-1 rounded-full bg-orange-500 animate-ping" />
+              <span className="font-mono text-[11px] text-orange-500 tracking-tighter">
+                {txHash.slice(0, 10)}…{txHash.slice(-6)}
+              </span>
+              <button 
+                onClick={reset} 
+                className="text-zinc-600 hover:text-white transition-colors p-1"
+                title="Reset"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          )}
+          {error && !txHash && (
+            <span className="text-[10px] font-mono text-red-500 font-bold uppercase tracking-tighter" title={error}>
+              Failed
             </span>
-            <button onClick={reset} style={{ fontFamily: "ui-monospace, monospace", fontSize: "10px", color: "#3f3f46", background: "none", border: "none", cursor: "pointer", padding: "0" }}>
-              ✕
-            </button>
-          </div>
-        )}
-        {error && !txHash && (
-          <span style={{ marginLeft: "auto", fontFamily: "ui-monospace, monospace", fontSize: "10px", color: "#f87171" }} title={error}>
-            error
-          </span>
-        )}
+          )}
+        </div>
       </div>
 ${paramsJsx}
     </div>
