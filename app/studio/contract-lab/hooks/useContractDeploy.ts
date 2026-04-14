@@ -255,8 +255,10 @@ export function useContractDeploy({
           const errorMsg = feeErr.message || String(feeErr);
           if (errorMsg.includes("already declared")) {
              isAlreadyDeclared = true;
-             const hashMatch = errorMsg.match(/0x[a-fA-F0-9]{64}/);
-             declareResult = { transaction_hash: "", class_hash: hashMatch ? hashMatch[0] : "0x0" };
+             // Compute class hash from Sierra data — never rely on regex over error messages
+             // because error messages often contain the wallet address (same hex length) first.
+             const cHash = hash.computeSierraContractClassHash(activeBuildData.sierra as CompiledSierra);
+             declareResult = { transaction_hash: "", class_hash: cHash };
              declareSource = "existing";
           } else if (errorMsg.includes("Insufficient STRK")) {
             throw feeErr;
@@ -280,8 +282,9 @@ export function useContractDeploy({
             const errorMsg = declErr.message || String(declErr);
             if (errorMsg.includes("already declared")) {
                  isAlreadyDeclared = true;
-                 const hashMatch = errorMsg.match(/0x[a-fA-F0-9]{64}/);
-                 declareResult = { transaction_hash: "", class_hash: hashMatch ? hashMatch[0] : "0x0" };
+                 // Same fix: compute from Sierra, not regex on error message
+                 const cHash = hash.computeSierraContractClassHash(activeBuildData.sierra as CompiledSierra);
+                 declareResult = { transaction_hash: "", class_hash: cHash };
                  declareSource = "existing";
             } else {
               throw declErr;
