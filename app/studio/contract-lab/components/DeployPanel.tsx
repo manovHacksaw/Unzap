@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Activity,
   Box,
+  Sparkles,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -659,6 +660,31 @@ export function DeployPanel({
               <CheckCircle2 className="w-4 h-4" />
               Deployed
             </div>
+
+            {/* Starter app CTA */}
+            {contractAddress && activeBuildData?.abi && (
+              <button
+                onClick={() => {
+                  // Store ABI in localStorage so project-workspace can pick it up
+                  try {
+                    localStorage.setItem(
+                      `unzap:workspace-abi:${contractAddress.toLowerCase()}`,
+                      JSON.stringify(activeBuildData.abi)
+                    );
+                  } catch {
+                    // localStorage unavailable — workspace will fall back to history
+                  }
+                  const contractName = activeFile?.filename?.replace(/\.cairo$/, "") ?? "MyContract";
+                  const url = `/studio/project-workspace?address=${encodeURIComponent(contractAddress)}&classHash=${encodeURIComponent(classHash)}&network=${network}&name=${encodeURIComponent(contractName)}`;
+                  window.open(url, "_blank");
+                }}
+                className="w-full py-3 rounded-xl text-[12px] font-bold tracking-wide transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 shadow-[0_0_24px_rgba(139,92,246,0.2)] hover:shadow-[0_0_32px_rgba(139,92,246,0.35)]"
+              >
+                <Sparkles className="w-4 h-4" />
+                Get Starter App
+              </button>
+            )}
+
             <button
               onClick={onReset}
               className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-neutral-600 hover:text-neutral-400 bg-transparent border border-border/50 hover:border-neutral-700 transition-all"
