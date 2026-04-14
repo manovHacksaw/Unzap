@@ -9,7 +9,7 @@ datasource db {
 model Project {
   id        String   @id @default(uuid())
   name      String
-  files     String   // JSON string as SQLite doesn't support Json type directly in Prisma sometimes, but we'll try Json first
+  files     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   userId    String
@@ -21,7 +21,7 @@ model Deployment {
   id              String   @id @default(uuid())
   contractAddress String
   classHash       String
-  abi             String   // JSON string
+  abi             String
   name            String?
   network         String
   createdAt       DateTime @default(now())
@@ -37,6 +37,16 @@ model Transaction {
   status    String
   createdAt DateTime @default(now())
   userId    String
+
+  @@index([userId])
+}
+
+model PrivyWallet {
+  id        String   @id
+  userId    String   @unique
+  walletId  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime
 
   @@index([userId])
 }
