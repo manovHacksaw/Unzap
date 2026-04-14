@@ -83,7 +83,8 @@ export async function POST(req: Request) {
       serverUrl: `${origin}/api/wallet/sign`,
     });
   } catch (err) {
-    console.error("[signer-context] Unexpected error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[signer-context] Unexpected error:", message);
+    return NextResponse.json({ error: "Internal server error", detail: message }, { status: 500 });
   }
 }

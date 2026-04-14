@@ -2,7 +2,7 @@ import type { StarkZap } from "starkzap";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-export const COMPILER_URL = "/api/compile";
+export const COMPILER_URL = "/api";
 export const CONTRACT_LAB_DRAFT_KEY = "unzap:contract-lab:draft";
 export const CONTRACT_LAB_SETTINGS_KEY = "unzap:contract-lab:settings";
 export const CONTRACT_LAB_WALLET_SESSION_KEY = "unzap:contract-lab:wallet-session";
