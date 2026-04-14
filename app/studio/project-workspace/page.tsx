@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -107,9 +107,9 @@ function useShiki(code: string, filename: string): string | null {
   return html;
 }
 
-// ── Page Component ──────────────────────────────────────────────────────────
+// ── Page Content ──────────────────────────────────────────────────────────
 
-export default function ProjectWorkspacePage() {
+function WorkspaceContent() {
   const searchParams = useSearchParams();
   const address = searchParams.get("address");
   const name = searchParams.get("name") || "MyProject";
@@ -492,6 +492,19 @@ export default function ProjectWorkspacePage() {
         .shiki { background-color: transparent !important; }
       `}</style>
     </main>
+  );
+}
+
+export default function ProjectWorkspacePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center bg-black text-zinc-500">
+        <Loader2 className="animate-spin mr-2" size={20} />
+        Initializing Workspace...
+      </div>
+    }>
+      <WorkspaceContent />
+    </Suspense>
   );
 }
 
