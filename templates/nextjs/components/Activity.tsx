@@ -63,21 +63,30 @@ export function Activity({ logs }: ActivityProps) {
                   </span>
                 </div>
                 
-                <p className="text-[11px] leading-relaxed text-zinc-400 break-all selection:bg-orange-500/30">
-                  {log.text.includes('·') ? (
-                    <>
-                      {log.text.split('·')[0]}
-                      <a 
-                        href={log.text.split('·')[1].trim()} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-emerald-500 hover:text-emerald-400 ml-1 underline underline-offset-4 decoration-emerald-500/20"
-                      >
-                        view <ExternalLink size={10} />
-                      </a>
-                    </>
-                  ) : log.text}
-                </p>
+                <div className="text-[11px] leading-relaxed text-zinc-400 break-all selection:bg-orange-500/30">
+                  {(() => {
+                    if (!log.text.includes('·')) return log.text;
+                    const parts = log.text.split('·');
+                    const text = parts[0];
+                    const url = parts[1] ? parts[1].trim() : undefined;
+                    
+                    if (!url) return text;
+                    
+                    return (
+                      <>
+                        {text}
+                        <a 
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-emerald-500 hover:text-emerald-400 ml-1 underline underline-offset-4 decoration-emerald-500/20"
+                        >
+                          view <ExternalLink size={10} />
+                        </a>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
           ))

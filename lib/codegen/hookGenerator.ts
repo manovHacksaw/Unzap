@@ -34,11 +34,15 @@ function buildCalldataLines(inputs: AbiEntry["inputs"]): string[] {
     const noteStr = note ? `      ${note}\n` : "";
     if (i.type.includes("u256")) {
       return [
-        `${noteStr}      ...(typeof ${camel} === 'object' ? [${camel}.low, ${camel}.high] : [String(BigInt(${camel} as string) & ((BigInt(1) << BigInt(128)) - BigInt(1))), String(BigInt(${camel} as string) >> BigInt(128))]),`,
+        `${noteStr}      ...((!${camel} && ${camel} !== 0) ? ['0', '0'] : (typeof ${camel} === 'object' ? [${camel}.low, ${camel}.high] : [String(BigInt(${camel}) & ((BigInt(1) << BigInt(128)) - BigInt(1))), String(BigInt(${camel}) >> BigInt(128))])),`,
       ];
     }
     if (i.type.includes("Array") || i.type.includes("Span")) {
-      return [`${noteStr}      String((${camel} as unknown[]).length), ...(${camel} as unknown[]).map(String),`];
+      const isU256 = i.type.includes("u256");
+      const mapping = isU256 
+        ? `.flatMap(item => (typeof item === 'object' ? [String((item as any).low), String((item as any).high)] : [String(BigInt(item || 0) & ((BigInt(1) << BigInt(128)) - BigInt(1))), String(BigInt(item || 0) >> BigInt(128))]))`
+        : `.map(String)`;
+      return [`${noteStr}      String((${camel} as unknown[]).length), ...(${camel} as unknown[])${mapping},`];
     }
     if (i.type === "bool" || i.type === "core::bool") {
       return [`      ${camel} ? '1' : '0',`];
@@ -86,7 +90,7 @@ function toCalldataExpr(camelName: string, cairoType: string): string {
     return `${camelName} ? '0x1' : '0x0'`;
   }
   if (cairoType.includes("u256")) {
-    return `...(typeof ${camelName} === 'object' ? [String(${camelName}.low), String(${camelName}.high)] : [String(BigInt(${camelName} as string) & ((BigInt(1) << BigInt(128)) - BigInt(1))), String(BigInt(${camelName} as string) >> BigInt(128))])`;
+    return `...((!${camelName} && ${camelName} !== 0) ? ['0', '0'] : (typeof ${camelName} === 'object' ? [String(${camelName}.low), String(${camelName}.high)] : [String(BigInt(${camelName}) & ((BigInt(1) << BigInt(128)) - BigInt(1))), String(BigInt(${camelName}) >> BigInt(128))]))`;
   }
   // ContractAddress, felt252, u8/u16/u32/u64/u128, ClassHash — all pass as string
   return `String(${camelName})`;
@@ -106,7 +110,17 @@ function decodeResultExpr(cairoType: string): string {
   if (cairoType.includes("u256")) {
     return `{ low: response[0], high: response[1] ?? '0x0' }`;
   }
-  // felt252, ContractAddress, ClassHash, u128, ByteArray → string
+  // felt252, ContractAddress, ClassHash, u128, ByteArray → attempt short-string decode or string
+  if (cairoType.includes("felt252") || cairoType.includes("ContractAddress") || cairoType.includes("ClassHash") || cairoType.includes("ByteArray")) {
+    return `(() => {
+      try {
+        const s = shortString.decodeShortString(response[0]);
+        return (s && /^[\\x20-\\x7E]*$/.test(s) && s.length > 0) ? s : response[0];
+      } catch {
+        return response[0];
+      }
+    })()`;
+  }
   return `response[0]`;
 }
 

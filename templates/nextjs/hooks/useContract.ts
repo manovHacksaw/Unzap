@@ -23,6 +23,8 @@ export function useContractRead(fn: ContractFunction, args: string[]) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const provider = useMemo(() => new RpcProvider({ nodeUrl: RPC_URL }), []);
+
   const argsRef = useRef<string[]>(args);
   argsRef.current = args;
 
@@ -32,7 +34,6 @@ export function useContractRead(fn: ContractFunction, args: string[]) {
     setLoading(true);
     setError(null);
     try {
-      const provider = new RpcProvider({ nodeUrl: RPC_URL });
       const normalizedCalldata = prepareCalldata(fn, currentArgs);
       
       const response = await provider.callContract({
@@ -52,7 +53,7 @@ export function useContractRead(fn: ContractFunction, args: string[]) {
     } finally {
       setLoading(false);
     }
-  }, [fn]);
+  }, [fn, provider]);
 
   // Auto-fetch parameterless functions once on mount
   useEffect(() => {
@@ -72,6 +73,8 @@ export function useContractWrite(fn: ContractFunction) {
   const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const provider = useMemo(() => new RpcProvider({ nodeUrl: RPC_URL }), []);
 
   const execute = useCallback(
     async (args: string[]): Promise<string> => {
@@ -96,7 +99,7 @@ export function useContractWrite(fn: ContractFunction) {
           const result = await (account as Account).execute(calls);
           hash = result.transaction_hash;
           setTxHash(hash);
-          await new RpcProvider({ nodeUrl: RPC_URL }).waitForTransaction(hash);
+          await provider.waitForTransaction(hash);
         }
         setStatus('success');
         return hash;
@@ -107,7 +110,7 @@ export function useContractWrite(fn: ContractFunction) {
         throw e;
       }
     },
-    [account, szWallet, walletType, fn]
+    [account, szWallet, walletType, fn, provider]
   );
 
   const reset = useCallback(() => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Shield, Sparkles, ExternalLink } from 'lucide-react';
+import { Sparkles, ExternalLink } from 'lucide-react';
 
 export function SetupGuide() {
   return (
@@ -39,6 +39,7 @@ export function SetupGuide() {
       <a
         href="https://unzap.dev/docs"
         target="_blank"
+        rel="noopener noreferrer"
         className="flex items-center justify-between w-full p-4 bg-zinc-100 hover:bg-white text-black rounded-2xl transition-all group shadow-lg shadow-white/5"
       >
         <span className="text-[10px] font-black uppercase tracking-widest">Full Documentation</span>

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { NETWORK_LABEL, CONTRACT_ADDRESS } from '@/lib/contract';
 import { WRITE_FUNCTIONS, READ_FUNCTIONS, toTitle } from '@/lib/contractFunctions';
-import { Database, Shield, Zap, ExternalLink, Copy, Check } from 'lucide-react';
+import { Database, Shield, ExternalLink, Copy, Check } from 'lucide-react';
 
 interface OverviewProps {
   contractName: string;
@@ -11,11 +11,24 @@ interface OverviewProps {
 
 export function Overview({ contractName }: OverviewProps) {
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(CONTRACT_ADDRESS);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = useCallback(async () => {
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(CONTRACT_ADDRESS);
+      setCopied(true);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
   }, []);
 
   return (
@@ -80,6 +93,7 @@ export function Overview({ contractName }: OverviewProps) {
         <a
           href="https://unzap.dev"
           target="_blank"
+          rel="noopener noreferrer"
           className="h-14 px-8 bg-zinc-100 hover:bg-white text-black rounded-2xl flex items-center gap-3 text-xs font-bold uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-zinc-100/5"
         >
           Documentation <ExternalLink size={14} />

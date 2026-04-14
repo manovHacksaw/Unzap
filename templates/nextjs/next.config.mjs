@@ -1,3 +1,7 @@
+import path from "path";
+
+const root = process.cwd();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // starkzap and ethers ship as ESM — Next.js must transpile them
@@ -13,6 +17,8 @@ const nextConfig = {
       "@arbitrum/sdk": "./lib/stubs/generic.ts",
       "@solana/web3.js": "./lib/stubs/generic.ts",
       "@fatsolutions/tongo-sdk": "./lib/stubs/generic.ts",
+      "@farcaster/mini-app-solana": "./lib/stubs/generic.ts",
+      "@cartridge/controller": "./lib/stubs/generic.ts",
     },
   },
 
@@ -21,12 +27,13 @@ const nextConfig = {
     // compilation hang. Stub the whole hyperlane chain — it's not used at runtime.
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@hyperlane-xyz/sdk": false,
-      "@hyperlane-xyz/registry": false,
-      "@hyperlane-xyz/utils": false,
-      "@arbitrum/sdk": false,
+      "@hyperlane-xyz/sdk": path.join(root, "./lib/stubs/generic.ts"),
+      "@hyperlane-xyz/registry": path.join(root, "./lib/stubs/generic.ts"),
+      "@hyperlane-xyz/utils": path.join(root, "./lib/stubs/generic.ts"),
+      "@arbitrum/sdk": path.join(root, "./lib/stubs/generic.ts"),
       // Privy's Solana adapter — not needed for Starknet
-      "@farcaster/mini-app-solana": false,
+      "@farcaster/mini-app-solana": path.join(root, "./lib/stubs/generic.ts"),
+      "@cartridge/controller": path.join(root, "./lib/stubs/generic.ts"),
     };
 
     config.resolve.fallback = {

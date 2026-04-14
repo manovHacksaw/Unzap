@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import type { ContractFunction } from '@/lib/contractFunctions';
 import { formatResult } from '@/lib/contractFunctions';

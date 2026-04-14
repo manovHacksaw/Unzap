@@ -11,7 +11,9 @@ export const quoteToCalls = () => [];
 export const cancelDcaToCalls = () => [];
 export const createDcaToCalls = () => [];
 export const getDcaOrders = async () => [];
-export const DcaOrderStatus = {} as any;
+export const DcaOrderStatus = {
+  INDEXING: "INDEXING",
+} as any;
 export const AvnuDcaOrderStatus = {} as any;
 
 export default {};

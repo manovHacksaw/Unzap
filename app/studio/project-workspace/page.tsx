@@ -31,6 +31,16 @@ type FileNode = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+function safeParseJSON<T>(json: string | null, fallback: T): T {
+  if (!json) return fallback;
+  try {
+    const parsed = JSON.parse(json);
+    return parsed as T;
+  } catch (_) {
+    return fallback;
+  }
+}
+
 function buildFileTree(files: Record<string, string>): FileNode[] {
   const root: FileNode[] = [];
 
@@ -129,23 +139,19 @@ export default function ProjectWorkspacePage() {
         // 1. Check the key written by InteractPanel just before opening this tab
         const directAbiStr = localStorage.getItem(`unzap:workspace-abi:${address.toLowerCase()}`);
         if (directAbiStr) {
-          try {
-            const parsed = JSON.parse(directAbiStr);
-            if (Array.isArray(parsed) && parsed.length > 0) abi = parsed;
-          } catch (_) {}
+          const parsed = safeParseJSON<any[]>(directAbiStr, []);
+          if (Array.isArray(parsed) && parsed.length > 0) abi = parsed;
         }
 
         // 2. Fall back to the history cache (populated after deploy + auth)
         if (abi.length === 0) {
           const historyStr = localStorage.getItem("unzap:history");
-          if (historyStr) {
-            const history = JSON.parse(historyStr);
-            const found = history.deployments?.find((d: any) =>
-              d.contractAddress.toLowerCase() === address.toLowerCase()
-            );
-            if (found) {
-              abi = typeof found.abi === "string" ? JSON.parse(found.abi) : found.abi;
-            }
+          const history = safeParseJSON<any>(historyStr, { deployments: [] });
+          const found = history.deployments?.find((d: any) =>
+            d.contractAddress.toLowerCase() === address.toLowerCase()
+          );
+          if (found) {
+            abi = typeof found.abi === "string" ? safeParseJSON(found.abi, []) : (found.abi || []);
           }
         }
 
@@ -200,21 +206,17 @@ export default function ProjectWorkspacePage() {
       let abi: any[] = [];
       const directAbiStr2 = localStorage.getItem(`unzap:workspace-abi:${address?.toLowerCase()}`);
       if (directAbiStr2) {
-        try {
-          const parsed = JSON.parse(directAbiStr2);
-          if (Array.isArray(parsed) && parsed.length > 0) abi = parsed;
-        } catch (_) {}
+        const parsed = safeParseJSON<any[]>(directAbiStr2, []);
+        if (Array.isArray(parsed) && parsed.length > 0) abi = parsed;
       }
       if (abi.length === 0) {
         const historyStr = localStorage.getItem("unzap:history");
-        if (historyStr) {
-          const history = JSON.parse(historyStr);
-          const found = history.deployments?.find((d: any) =>
-            d.contractAddress.toLowerCase() === address?.toLowerCase()
-          );
-          if (found) {
-            abi = typeof found.abi === "string" ? JSON.parse(found.abi) : found.abi;
-          }
+        const history = safeParseJSON<any>(historyStr, { deployments: [] });
+        const found = history.deployments?.find((d: any) =>
+          d.contractAddress.toLowerCase() === address?.toLowerCase()
+        );
+        if (found) {
+          abi = typeof found.abi === "string" ? safeParseJSON(found.abi, []) : (found.abi || []);
         }
       }
 

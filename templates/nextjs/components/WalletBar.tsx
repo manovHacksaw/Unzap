@@ -48,10 +48,14 @@ export function WalletBar() {
         {open && (
            <div className="absolute top-full right-0 mt-3 w-48 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl z-50">
              <button
-              onClick={() => {
-                navigator.clipboard.writeText(address);
-                setCopied(true);
-                setTimeout(() => { setCopied(false); setOpen(false); }, 1500);
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(address);
+                  setCopied(true);
+                  setTimeout(() => { setCopied(false); setOpen(false); }, 1500);
+                } catch (err) {
+                  console.error('Wallet copy failed:', err);
+                }
               }}
               className="w-full flex items-center justify-between px-4 py-4 hover:bg-zinc-900 transition-colors text-zinc-300 text-xs font-bold uppercase tracking-widest border-b border-zinc-900"
             >

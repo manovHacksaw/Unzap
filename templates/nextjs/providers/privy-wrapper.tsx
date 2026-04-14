@@ -4,6 +4,7 @@ import { type ReactNode, useState, useCallback, useMemo, useEffect } from 'react
 import { PrivyProvider, usePrivy, useLogin } from '@privy-io/react-auth';
 import { StarkZap, OnboardStrategy, accountPresets } from 'starkzap';
 import { WalletAccount, Account } from 'starknet';
+import { connect as connectStarknet } from '@starknet-io/get-starknet';
 import { WalletContext } from '@/hooks/wallet';
 import { RPC_URL } from '@/lib/contract';
 
@@ -83,9 +84,10 @@ function PrivyWalletProvider({ children }: { children: ReactNode }) {
     setIsConnecting(true);
     setError(null);
     try {
-      const swo = (window as any).starknet;
-      if (!swo) throw new Error('No Starknet browser extension found.');
-      const walletAccount = await WalletAccount.connect(sdk.getProvider(), swo);
+      const wallet = await connectStarknet({ modalMode: 'alwaysAsk' });
+      if (!wallet) return;
+      
+      const walletAccount = await WalletAccount.connect(sdk.getProvider(), wallet);
       setAccount(walletAccount);
       setAddress(walletAccount.address);
       setWalletType('extension');

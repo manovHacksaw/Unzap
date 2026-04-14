@@ -37,6 +37,7 @@ export function ActionItem({ fn, onLog, walletConnected }: ActionItemProps) {
       onLog('tx', `${fn.title} confirmed · ${explorerTxUrl(hash)}`);
     } catch (e) {
       onLog('error', e instanceof Error ? e.message : String(e));
+      reset();
     }
   };
 
