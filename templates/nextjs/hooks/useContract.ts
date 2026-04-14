@@ -10,7 +10,7 @@
  * different contract — no changes needed here.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { RpcProvider, Account } from 'starknet';
 import { CONTRACT_ADDRESS, RPC_URL } from '@/lib/contract';
 import { useWallet } from '@/hooks/wallet';
