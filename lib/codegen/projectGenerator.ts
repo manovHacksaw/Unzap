@@ -73,7 +73,7 @@ export function generateProject(input: GenerateHooksInput): ProjectFiles {
   };
 
   files["package.json"] = inject(readTemplate("nextjs", "package.json"), vars);
-  files[".env.example"] = inject(readTemplate("nextjs", ".env.example"), vars);
+  files[".env.example"] = inject(readTemplate("nextjs", "env.example"), vars);
   files["README.md"] = inject(readTemplate("nextjs", "README.md"), vars);
   files["lib/contract.ts"] = inject(readTemplate("nextjs", "lib", "contract.ts"), vars);
   files["app/layout.tsx"] = inject(readTemplate("nextjs", "app", "layout.tsx"), vars);
