@@ -15,6 +15,15 @@ interface GenerateProjectBody {
 
 export async function POST(req: Request) {
   try {
+    // Diagnostic: log cwd and template dir existence on Vercel
+    const fs = await import("fs");
+    const path = await import("path");
+    const cwd = process.cwd();
+    const templateDir = path.join(cwd, "templates", "nextjs");
+    const templateExists = fs.existsSync(templateDir);
+    const templateFiles = templateExists ? fs.readdirSync(templateDir) : [];
+    console.log(`[generate-project] cwd=${cwd} templateDir=${templateDir} exists=${templateExists} files=${JSON.stringify(templateFiles)}`);
+
     const body = (await req.json()) as Partial<GenerateProjectBody>;
     const { contractName, contractAddress, classHash, network, abi, format = "zip" } = body;
 
