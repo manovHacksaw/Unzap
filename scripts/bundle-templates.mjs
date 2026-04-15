@@ -9,7 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const templateDir = path.join(__dirname, "..", "templates", "nextjs");
+const templateDir = path.join(__dirname, "..", "templates");
 const outputFile = path.join(__dirname, "..", "lib", "codegen", "templateContents.ts");
 
 function readDirRecursive(dir, base = "") {
