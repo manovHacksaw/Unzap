@@ -1,17 +1,17 @@
-import fs from "fs";
-import path from "path";
+import { TEMPLATES } from "./templateContents";
 
 /**
- * Reads a template file from the templates directory in the project root.
+ * Reads a template from the bundled TEMPLATES map.
+ * All template files are embedded at build time by scripts/bundle-templates.mjs,
+ * so no filesystem access is needed at runtime (safe for Vercel serverless).
  */
 export function readTemplate(...paths: string[]): string {
-  const fullPath = path.join(process.cwd(), "templates", ...paths);
-  try {
-    return fs.readFileSync(fullPath, "utf8");
-  } catch (error) {
-    console.error(`[codegen/inject] Failed to read template at ${fullPath}`);
-    throw error;
+  const key = paths.join("/");
+  const content = TEMPLATES[key];
+  if (content === undefined) {
+    throw new Error(`Template not found: ${key}. Run scripts/bundle-templates.mjs to regenerate.`);
   }
+  return content;
 }
 
 /**
