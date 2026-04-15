@@ -8,12 +8,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Tell Vercel's file tracer to bundle the templates directory with the API route.
-  // Without this, fs.readFileSync calls in /api/generate-project fail in production
-  // because serverless functions only include statically-imported files by default.
-  outputFileTracingIncludes: {
-    "/api/generate-project": ["./templates/**/*"],
-  },
   async headers() {
     return [
       {

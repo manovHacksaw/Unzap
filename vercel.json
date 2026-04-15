@@ -3,6 +3,11 @@
   "buildCommand": "prisma generate && NODE_OPTIONS='--max-old-space-size=6144' next build --webpack",
   "installCommand": "npm install",
   "functions": {
+    "app/api/generate-project/route.ts": {
+      "memory": 1024,
+      "maxDuration": 30,
+      "includeFiles": "templates/**"
+    },
     "app/api/**/*.ts": {
       "memory": 1024,
       "maxDuration": 30
