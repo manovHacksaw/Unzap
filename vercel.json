@@ -6,7 +6,7 @@
     "app/api/generate-project/route.ts": {
       "memory": 1024,
       "maxDuration": 30,
-      "includeFiles": "templates/**"
+      "includeFiles": ["templates/**", "templates/**/.*"]
     },
     "app/api/**/*.ts": {
       "memory": 1024,
