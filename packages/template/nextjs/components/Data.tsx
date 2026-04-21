@@ -15,7 +15,7 @@ export function Data() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
+    <div className="flex flex-col gap-4 p-8 glass-panel shadow-2xl shadow-black/50">
       {READ_FUNCTIONS.map((fn) => (
         <ReadItem key={fn.name} fn={fn} />
       ))}

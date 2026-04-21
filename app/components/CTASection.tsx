@@ -25,10 +25,10 @@ export default function CTASection() {
             animate="animate"
         >
             <p className="mb-2 text-right text-sm leading-relaxed text-neutral-400">
-                Write Cairo.<br />Execute live.<br />See every step.<br />Right here.
+                Write. Compile.<br />Deploy. Interact.<br />Generate App.
             </p>
             <p className="mb-7 max-w-[320px] text-right text-xs uppercase tracking-widest text-neutral-600">
-                No install. No setup. No CLI.
+                No install. No setup. Just Cairo.
             </p>
 
             <div className="flex items-center gap-7">
@@ -50,7 +50,7 @@ export default function CTASection() {
 
                 <motion.div whileHover={{ scale: 1.05 }}>
                     <Link
-                        href="/studio"
+                        href="/studio/contract-lab"
                         className="block border px-5 py-2.5 text-xs uppercase tracking-widest text-white transition-all hover:bg-white/5"
                         style={{
                             borderColor: "rgba(255,255,255,0.25)",
@@ -58,7 +58,7 @@ export default function CTASection() {
                             boxShadow: "0 0 18px rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(255,255,255,0.1)",
                         }}
                     >
-                        Try Unzap Studio Now
+                        Open Contract Lab
                     </Link>
                 </motion.div>
             </div>

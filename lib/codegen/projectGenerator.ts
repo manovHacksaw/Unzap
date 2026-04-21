@@ -45,6 +45,7 @@ export function generateProject(input: GenerateHooksInput): ProjectFiles {
     "components/Overview.tsx",
     "components/WalletBar.tsx",
     "components/SetupGuide.tsx",
+    "components/RpcBanner.tsx",
     "providers/index.tsx",
     "providers/privy-wrapper.tsx",
     "app/api/signer-context/route.ts",
@@ -67,8 +68,8 @@ export function generateProject(input: GenerateHooksInput): ProjectFiles {
     PASCAL_NAME: pascal,
     CLASS_HASH: classHash ?? "",
     RPC_URL: network === "mainnet"
-      ? "https://free-rpc.nethermind.io/mainnet-juno/v0_8"
-      : "https://starknet-sepolia.drpc.org",
+      ? "https://starknet-mainnet.public.blastapi.io"
+      : "https://starknet-sepolia.public.blastapi.io",
     ABI_JSON: JSON.stringify(abi, null, 2),
   };
 
@@ -78,7 +79,7 @@ export function generateProject(input: GenerateHooksInput): ProjectFiles {
   files["lib/contract.ts"] = inject(readTemplate("nextjs", "lib", "contract.ts"), vars);
   files["app/layout.tsx"] = inject(readTemplate("nextjs", "app", "layout.tsx"), vars);
   files["app/page.tsx"] = inject(readTemplate("nextjs", "app", "page.tsx"), vars);
-  files["hooks/wallet.ts"] = inject(readTemplate("nextjs", "hooks", "wallet.ts"), vars);
+  files["hooks/wallet.tsx"] = inject(readTemplate("nextjs", "hooks", "wallet.tsx"), vars);
 
   // ── Generated Files ────────────────────────────────────────────────────────
   

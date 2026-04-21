@@ -17,7 +17,7 @@ export const NETWORK_LABEL =
   NETWORK === "mainnet" ? "Starknet Mainnet" : "Starknet Sepolia";
 
 export const EXPLORER_URL =
-  NETWORK === "mainnet" ? "https://starkscan.co" : "https://sepolia.starkscan.co";
+  NETWORK === "mainnet" ? "https://voyager.online" : "https://sepolia.voyager.online";
 
 export function explorerTxUrl(hash: string): string {
   return `${EXPLORER_URL}/tx/${hash}`;

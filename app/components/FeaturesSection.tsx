@@ -6,31 +6,31 @@ import { cn } from "../../lib/utils";
 
 const features = [
     {
-        title: "Browser-first Contract Lab",
+        title: "Browser-first Contract Editor",
         description:
-            "Author Cairo, build artifacts, inspect terminal output, and keep the whole workflow visible in one place.",
+            "Author Cairo in the browser, inspect file artifacts, and view terminal output — the full write-to-compile loop in one place.",
         preview: <WorkspacePreview />,
         className: "col-span-1 lg:col-span-4 border-b lg:border-r border-neutral-800",
     },
     {
-        title: "Execution you can follow",
+        title: "Compile & Deploy pipeline",
         description:
-            "Track declare, deploy, and interaction states as they happen instead of treating Starknet calls like a black box.",
+            "Docker-backed compilation produces Sierra artifacts on demand. Declare and deploy gaslessly to Starknet Sepolia in one flow.",
         preview: <ExecutionPreview />,
         className: "col-span-1 lg:col-span-2 border-b border-neutral-800",
     },
     {
         title: "ABI-aware interactions",
         description:
-            "Load a deployed contract, pull in its ABI when available, and jump straight into readable function calls.",
+            "Load a deployed contract, pull in its ABI, and call functions directly — no hand-rolled calldata, no external tooling.",
         preview: <AbiPreview />,
         className: "col-span-1 lg:col-span-3 lg:border-r border-neutral-800",
     },
     {
-        title: "Wallet choice, same studio flow",
+        title: "Generate a Next.js Frontend",
         description:
-            "Use Privy for smoother onboarding or bring a local extension, then keep network, balance, and gasless readiness in view.",
-        preview: <WalletPreview />,
+            "One click scaffolds a typed Next.js starter pre-wired to your contract — hooks, ABI types, and wallet context included.",
+        preview: <GeneratePreview />,
         className: "col-span-1 lg:col-span-3 border-neutral-800",
     },
 ];
@@ -43,15 +43,15 @@ export function FeaturesSection() {
                     className="mx-auto mb-4 text-center text-[11px] uppercase tracking-[0.24em] text-neutral-500"
                     style={{ fontFamily: "monospace" }}
                 >
-                    Product surfaces
+                    Contract Lab Workflow
                 </p>
                 <h4 className="mx-auto max-w-5xl text-center text-3xl font-medium tracking-tight text-white lg:text-5xl lg:leading-tight">
-                    From Cairo file to live Starknet interaction
+                    Five steps from Cairo to shipped app
                 </h4>
 
                 <p className="mx-auto my-4 max-w-3xl text-center text-sm font-normal leading-relaxed text-neutral-400 lg:text-base">
-                    Unzap keeps authoring, execution, deployment, wallet context, and contract interaction
-                    inside one browser studio so the workflow stays understandable from start to finish.
+                    Write a Cairo contract, compile it, deploy to Starknet, interact with it on-chain,
+                    and generate a production-ready frontend — all inside one browser tab.
                 </p>
             </div>
 
@@ -179,7 +179,7 @@ function ExecutionPreview() {
             </div>
 
             <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-4 text-sm leading-relaxed text-neutral-300">
-                StarkZap-backed sponsored execution stays visible, so users know when a flow is local,
+                StarkZap-backed sponsored execution stays visible, so you know when a step is local,
                 signed, or paymaster-assisted.
             </div>
         </div>
@@ -220,45 +220,42 @@ function AbiPreview() {
     );
 }
 
-function WalletPreview() {
-    const options = [
-        {
-            title: "Privy",
-            points: ["Smoother onboarding", "Session restore", "Gasless-friendly"],
-        },
-        {
-            title: "Local extension",
-            points: ["Self-managed wallet", "Same studio flow", "Network aware"],
-        },
+function GeneratePreview() {
+    const files = [
+        { name: "page.tsx", tag: "entry" },
+        { name: "useContract.ts", tag: "hook" },
+        { name: "abi.ts", tag: "types" },
+        { name: "provider.tsx", tag: "wallet" },
     ];
 
     return (
         <div className="mt-8 min-h-[260px] rounded-[24px] border border-white/8 bg-neutral-950/70 p-5">
-            <div className="grid gap-3 sm:grid-cols-2">
-                {options.map((option) => (
-                    <div key={option.title} className="rounded-2xl border border-white/6 bg-white/[0.02] p-4">
-                        <div className="mb-3 text-sm font-medium text-white">{option.title}</div>
-                        <div className="space-y-2 text-sm text-neutral-400">
-                            {option.points.map((point) => (
-                                <div key={point} className="flex items-center gap-2">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-neutral-500" />
-                                    <span>{point}</span>
-                                </div>
-                            ))}
-                        </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 pb-4">
+                <div>
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Generated project</div>
+                    <div className="mt-2 font-mono text-sm text-neutral-200">my-contract-app/</div>
+                </div>
+                <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-emerald-300">
+                    Next.js ready
+                </div>
+            </div>
+
+            <div className="mt-4 grid gap-2">
+                {files.map((file) => (
+                    <div
+                        key={file.name}
+                        className="flex items-center justify-between rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3"
+                    >
+                        <span className="font-mono text-xs text-neutral-300">{file.name}</span>
+                        <span className="rounded-full border border-white/8 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                            {file.tag}
+                        </span>
                     </div>
                 ))}
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-                {["Sepolia network", "Session sustained", "Balance visible", "Gasless ready"].map((item) => (
-                    <span
-                        key={item}
-                        className="rounded-full border border-white/8 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-neutral-400"
-                    >
-                        {item}
-                    </span>
-                ))}
+            <div className="mt-4 rounded-2xl border border-neutral-700/40 bg-white/[0.015] px-4 py-3 text-xs text-neutral-500">
+                <span className="text-neutral-400">$ </span>npx create-next-app --example . my-contract-app
             </div>
         </div>
     );

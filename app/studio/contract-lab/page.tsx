@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import CodeMirror from "@uiw/react-codemirror";
 import { rust } from "@codemirror/lang-rust";
 import { oneDark } from "@codemirror/theme-one-dark";
@@ -44,6 +45,7 @@ import {
   Play,
   Loader2,
   Layout,
+  Sparkles,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
@@ -113,6 +115,7 @@ export default function StarkzapIDE() {
   const { network, setNetwork } = useNetwork();
   const netConfig = useMemo(() => getNetworkConfig(network), [network]);
   const sdkRef = useRef<StarkZap | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     sdkRef.current = new StarkZap({
@@ -358,6 +361,23 @@ export default function StarkzapIDE() {
     );
   };
 
+  const handleGenerateApp = useCallback(() => {
+    const address = deploy.contractAddress;
+    if (!address) return;
+
+    // Look up deployment ID from history (preferred — gives a clean URL)
+    const matched = history.history.deployments.find(
+      (d) => d.contractAddress.toLowerCase() === address.toLowerCase()
+    );
+    if (matched?.id) {
+      router.push(`/deployments/${matched.id}`);
+      return;
+    }
+
+    // Fallback: use address directly via the deployments list page
+    router.push("/studio/deployments");
+  }, [deploy.contractAddress, history.history.deployments, router]);
+
   const renderSidebarActions = () => {
     if (activeSidebarTab === "explorer") return <button onClick={explorer.createFile} className="p-1 hover:bg-neutral-800 rounded transition-colors text-neutral-600 hover:text-neutral-300"><FilePlus className="w-3.5 h-3.5" /></button>;
     if (activeSidebarTab === "history") return <button onClick={() => { history.setHistory({ deployments: [], transactions: [] }); toasts.pushToast({ tone: "info", title: "History cleared", description: "Local history was wiped." }); }} className="p-1 hover:text-white transition-colors" title="Clear history"><RefreshCw className="w-2.5 h-2.5" /></button>;
@@ -398,6 +418,27 @@ export default function StarkzapIDE() {
           {buildStatus === "success" && <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/15"><CheckCircle2 className="w-3 h-3 mr-1" />Build Success</Badge>}
           {buildStatus === "error" && <Badge className="bg-red-500/15 text-red-400 border-red-500/25 hover:bg-red-500/15"><XCircle className="w-3 h-3 mr-1" />Build Failed</Badge>}
           {buildStatus === "building" && <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/15"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-1.5 inline-block" />Building</Badge>}
+          <div className="w-px h-4 bg-neutral-800 mx-1" />
+          {deploy.contractAddress ? (
+            <Button
+              size="sm"
+              onClick={handleGenerateApp}
+              className="gap-1.5 bg-amber-500/15 text-amber-400 border border-amber-500/25 hover:bg-amber-500/25 hover:text-amber-300 transition-all"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Generate App
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              disabled
+              className="gap-1.5 bg-neutral-800/40 text-neutral-600 border border-neutral-800 cursor-not-allowed"
+              title="Deploy a contract first"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Generate App
+            </Button>
+          )}
           <div className="w-px h-4 bg-neutral-800 mx-1" />
           <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 text-foreground/50 hover:text-foreground" onClick={() => setIsSettingsOpen(true)}><Settings className="w-4 h-4" /></Button>
         </div>
@@ -528,7 +569,7 @@ export default function StarkzapIDE() {
                     <div>
                       <div className="flex items-center justify-between mb-4"><div className="text-[10px] text-neutral-600 uppercase tracking-widest font-bold">Recent Deployments</div><Zap className="w-2.5 h-2.5 text-neutral-800" /></div>
                       {history.history.deployments.length === 0 ? <div className="text-[10px] text-neutral-700 italic border border-dashed border-neutral-900 rounded-lg p-6 text-center">No deployments found.</div> : (
-                        <div className="space-y-2">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} />))}</div>
+                        <div className="space-y-2">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} onGenerateApp={() => { router.push(`/deployments/${d.id}`); }} />))}</div>
                       )}
                     </div>
                     <div>
@@ -598,7 +639,7 @@ export default function StarkzapIDE() {
         <div ref={centerPaneRef} className="flex-1 flex flex-col overflow-hidden bg-[#050505] relative cursor-text">
           {activeSidebarTab === "interact" ? (
             <div className="flex-1 overflow-y-auto p-12">
-              <InteractPanel contractAddress={deploy.contractAddress} abi={explorer.activeBuildData?.abi ?? []} account={wallet.starknetAccount} szWallet={wallet.szWallet} walletType={wallet.walletType} walletAddress={wallet.walletAddress} strkBalance={wallet.strkBalance} isFetchingBalance={wallet.isFetchingBalance} fetchStrkBalance={wallet.fetchStrkBalance} network={network} handleNetworkSwitch={handleNetworkSwitch} addLog={terminal.addLog} provider={sdkRef.current?.getProvider() as unknown as ProviderInterface | null} netConfig={netConfig} logTransaction={history.logTransaction} onRequestWallet={() => wallet.setShowAuthModal(true)} recentDeployments={history.history.deployments} layout="fullscreen" activeFileName={explorer.activeFile?.filename} notify={toasts.pushToast} />
+              <InteractPanel contractAddress={deploy.contractAddress} abi={explorer.activeBuildData?.abi ?? []} account={wallet.starknetAccount} szWallet={wallet.szWallet} walletType={wallet.walletType} walletAddress={wallet.walletAddress} strkBalance={wallet.strkBalance} isFetchingBalance={wallet.isFetchingBalance} fetchStrkBalance={wallet.fetchStrkBalance} network={network} handleNetworkSwitch={handleNetworkSwitch} addLog={terminal.addLog} provider={sdkRef.current?.getProvider() as unknown as ProviderInterface | null} netConfig={netConfig} logTransaction={history.logTransaction} onRequestWallet={() => wallet.setShowAuthModal(true)} recentDeployments={history.history.deployments} layout="fullscreen" activeFileName={explorer.activeFile?.filename} notify={toasts.pushToast} onGetStarterApp={handleGenerateApp} />
             </div>
           ) : (
             <>
@@ -677,7 +718,7 @@ export default function StarkzapIDE() {
               <div onMouseDown={() => layout.setIsResizingRightPanel(true)} className={clsx("w-1 cursor-col-resize", layout.isResizingRightPanel ? "bg-amber-500/40" : "bg-neutral-800 hover:bg-amber-500/50")} />
               <div className="flex flex-col flex-1 border-l border-neutral-800 bg-black/20 backdrop-blur-sm overflow-hidden">
                 <div className="flex items-center h-10 px-5 bg-black/40 border-b border-neutral-800 justify-between"><span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/60">Deploy</span><div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /><span className="text-[9px] text-muted-foreground uppercase tracking-wider">Live</span></div></div>
-                <DeployPanel activeFile={explorer.activeFile} activeBuildData={explorer.activeBuildData} buildStatus={buildStatus} network={network} netConfig={netConfig} handleNetworkSwitch={handleNetworkSwitch} starknetAccount={wallet.starknetAccount} walletAddress={wallet.walletAddress} walletType={wallet.walletType} disconnectWallet={wallet.disconnectWallet} strkBalance={wallet.strkBalance} isFetchingBalance={wallet.isFetchingBalance} fetchStrkBalance={wallet.fetchStrkBalance} setShowAuthModal={wallet.setShowAuthModal} deployStatus={deploy.deployStatus} deploySteps={deploy.deploySteps} classHash={deploy.classHash} contractAddress={deploy.contractAddress} constructorInputs={deploy.constructorInputs} setConstructorInputs={deploy.setConstructorInputs} salt={deploy.salt} setSalt={deploy.setSalt} handleDeclare={deploy.handleDeclare} handleDeploy={deploy.handleDeploy} onReset={deploy.resetDeployState} isWalletConnecting={wallet.isWalletConnecting} notify={toasts.pushToast} />
+                <DeployPanel activeFile={explorer.activeFile} activeBuildData={explorer.activeBuildData} buildStatus={buildStatus} network={network} netConfig={netConfig} handleNetworkSwitch={handleNetworkSwitch} starknetAccount={wallet.starknetAccount} walletAddress={wallet.walletAddress} walletType={wallet.walletType} disconnectWallet={wallet.disconnectWallet} strkBalance={wallet.strkBalance} isFetchingBalance={wallet.isFetchingBalance} fetchStrkBalance={wallet.fetchStrkBalance} setShowAuthModal={wallet.setShowAuthModal} deployStatus={deploy.deployStatus} deploySteps={deploy.deploySteps} classHash={deploy.classHash} contractAddress={deploy.contractAddress} constructorInputs={deploy.constructorInputs} setConstructorInputs={deploy.setConstructorInputs} salt={deploy.salt} setSalt={deploy.setSalt} handleDeclare={deploy.handleDeclare} handleDeploy={deploy.handleDeploy} onReset={deploy.resetDeployState} isWalletConnecting={wallet.isWalletConnecting} notify={toasts.pushToast} onGetStarterApp={handleGenerateApp} />
               </div>
             </motion.div>
           )}

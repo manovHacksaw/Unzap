@@ -7,6 +7,7 @@ import { Actions } from '@/components/Actions';
 import { Data } from '@/components/Data';
 import { Activity } from '@/components/Activity';
 import { SetupGuide } from '@/components/SetupGuide';
+import { RpcBanner } from '@/components/RpcBanner';
 import { useWallet } from '@/hooks/wallet';
 
 type LogType = 'call' | 'result' | 'tx' | 'error' | 'info';
@@ -38,10 +39,17 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-zinc-100/10">
-      <Header contractName="{{CONTRACT_NAME}}" />
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-zinc-100/10 relative overflow-hidden">
+      {/* Background Ambience */}
+      <div className="absolute top-0 left-0 w-full h-[1000px] pointer-events-none overflow-hidden">
+        <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] bg-emerald-500/5 blur-[120px] rounded-full animate-pulse-glow" />
+        <div className="absolute top-[10%] -right-[5%] w-[40%] h-[40%] bg-zinc-500/5 blur-[100px] rounded-full" />
+      </div>
 
-      <main className="max-w-[1400px] mx-auto px-8 py-12 space-y-12">
+      <Header contractName="{{CONTRACT_NAME}}" />
+      <RpcBanner />
+
+      <main className="max-w-[1400px] mx-auto px-8 py-12 space-y-10 relative z-10">
         <Overview contractName="{{CONTRACT_NAME}}" />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">

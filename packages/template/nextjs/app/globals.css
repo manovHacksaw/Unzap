@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --glow-emerald: rgba(16, 185, 129, 0.5);
+  --glow-orange: rgba(249, 115, 22, 0.5);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #f4f4f5;
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; filter: blur(40px); }
+  50% { opacity: 0.8; filter: blur(60px); }
+}
+
+@keyframes success-glow {
+  0% { border-color: rgba(16, 185, 129, 0.2); box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
+  50% { border-color: rgba(16, 185, 129, 0.6); box-shadow: 0 0 30px rgba(16, 185, 129, 0.2); }
+  100% { border-color: rgba(16, 185, 129, 0.2); box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.4s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4s ease-in-out infinite;
+}
+
+.success-highlight {
+  animation: success-glow 1.5s ease-in-out;
+}
+
+input[type="text"],
+input[type="number"],
+textarea {
+  font-family: ui-monospace, monospace;
+}
+
+.glass-panel {
+  @apply bg-zinc-950/40 border border-zinc-900 rounded-[2.5rem] backdrop-blur-sm transition-all duration-300;
+}
+
+.interactive-card {
+  @apply bg-zinc-950/30 border border-zinc-900 rounded-2xl p-6 transition-all duration-300 hover:border-zinc-700 hover:scale-[1.01] hover:shadow-2xl hover:shadow-black/50;
+}

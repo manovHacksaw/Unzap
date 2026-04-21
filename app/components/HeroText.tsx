@@ -36,7 +36,7 @@ export default function HeroText() {
                 className="text-neutral-400 text-[11px] tracking-widest mb-5 block"
                 style={{ fontFamily: "monospace" }}
             >
-                [ LEARN STARKNET BY DOING ]
+                [ CAIRO CONTRACT LAB ]
             </motion.span>
 
             <motion.h1 className="font-black uppercase leading-[0.92] tracking-tight">
@@ -52,7 +52,7 @@ export default function HeroText() {
                     className="block"
                     style={{ fontSize: "clamp(2rem, 4.5vw, 4.5rem)" }}
                 >
-                    EXECUTE WITH{" "}
+                    COMPILE.{" "}
                     <span
                         style={{
                             background: "linear-gradient(135deg, #e5e7eb 0%, #9ca3af 30%, #ffffff 55%, #6b7280 80%, #d1d5db 100%)",
@@ -61,7 +61,7 @@ export default function HeroText() {
                             backgroundClip: "text",
                         }}
                     >
-                        STARKZAP.
+                        DEPLOY.
                     </span>
                 </motion.span>
                 <motion.span
@@ -69,7 +69,7 @@ export default function HeroText() {
                     className="block text-white"
                     style={{ fontSize: "clamp(2rem, 4.5vw, 4.5rem)" }}
                 >
-                    SEE EVERY STEP.
+                    SHIP YOUR APP.
                 </motion.span>
             </motion.h1>
 
@@ -77,8 +77,8 @@ export default function HeroText() {
                 variants={lineVariants}
                 className="mt-6 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-base"
             >
-                Unzap turns Starknet workflows into a browser-native studio with guided execution,
-                deploy-ready contract flows, and interactions that stay understandable.
+                A browser-native lab for Cairo smart contracts. Write code, compile via Docker,
+                deploy gaslessly to Starknet, interact on-chain, and generate a typed Next.js starter.
             </motion.p>
         </motion.div>
     );

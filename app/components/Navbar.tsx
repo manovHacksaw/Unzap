@@ -5,10 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 
 const navLinks = [
+    { label: "CONTRACT LAB", href: "/studio/contract-lab" },
+    { label: "PROJECTS", href: "/studio/deployments" },
     { label: "STUDIO", href: "/studio" },
-    { label: "SOLUTIONS", href: "/#solutions" },
-    { label: "DEVELOPERS", href: "/#developers" },
-    { label: "RESOURCES", href: "/#resources" },
+    { label: "WORKFLOW", href: "/#solutions" },
     { label: "GITHUB", href: "https://github.com/manovHacksaw/Unzap", external: true },
     { label: "X", href: "https://x.com/manovmandal", external: true },
 ];

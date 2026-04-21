@@ -113,6 +113,7 @@ interface DeployPanelProps {
   onReset: () => void;
   isWalletConnecting: boolean;
   notify?: (toast: StudioToastInput) => void;
+  onGetStarterApp?: () => void;
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
@@ -145,6 +146,7 @@ export function DeployPanel({
   onReset,
   isWalletConnecting,
   notify,
+  onGetStarterApp,
 }: DeployPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeStepRef = useRef<HTMLDivElement>(null);
@@ -664,20 +666,7 @@ export function DeployPanel({
             {/* Starter app CTA */}
             {contractAddress && activeBuildData?.abi && (
               <button
-                onClick={() => {
-                  // Store ABI in localStorage so project-workspace can pick it up
-                  try {
-                    localStorage.setItem(
-                      `unzap:workspace-abi:${contractAddress.toLowerCase()}`,
-                      JSON.stringify(activeBuildData.abi)
-                    );
-                  } catch {
-                    // localStorage unavailable — workspace will fall back to history
-                  }
-                  const contractName = activeFile?.filename?.replace(/\.cairo$/, "") ?? "MyContract";
-                  const url = `/studio/project-workspace?address=${encodeURIComponent(contractAddress)}&classHash=${encodeURIComponent(classHash)}&network=${network}&name=${encodeURIComponent(contractName)}`;
-                  window.open(url, "_blank");
-                }}
+                onClick={() => onGetStarterApp?.()}
                 className="w-full py-3 rounded-xl text-[12px] font-bold tracking-wide transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 shadow-[0_0_24px_rgba(139,92,246,0.2)] hover:shadow-[0_0_32px_rgba(139,92,246,0.35)]"
               >
                 <Sparkles className="w-4 h-4" />

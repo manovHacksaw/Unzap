@@ -11,17 +11,25 @@ import { FeaturesSection } from "./components/FeaturesSection";
 
 const developerHighlights = [
   {
-    title: "Browser-first workflow",
-    description: "Write, build, declare, deploy, and interact without leaving the browser.",
+    title: "Write & Compile",
+    description: "Author Cairo in the browser editor. Compile via Docker backend and inspect Sierra artifacts instantly.",
   },
   {
-    title: "StarkZap-powered execution",
-    description: "Keep sponsored flows, wallet state, and on-chain steps visible instead of hidden.",
+    title: "Deploy & Interact",
+    description: "Gasless deploy to Starknet Sepolia. Call any contract function directly from its ABI — no boilerplate.",
   },
   {
-    title: "Flexible wallet onboarding",
-    description: "Use Privy for smoother onboarding or connect your own extension and keep control.",
+    title: "Generate Frontend",
+    description: "Scaffold a typed Next.js starter pre-wired to your deployed contract in one click.",
   },
+];
+
+const workflowSteps = [
+  { step: "01", label: "Write Contract" },
+  { step: "02", label: "Compile" },
+  { step: "03", label: "Deploy" },
+  { step: "04", label: "Interact" },
+  { step: "05", label: "Generate App" },
 ];
 
 const resourceLinks = [
@@ -125,6 +133,36 @@ export default function UnzapLanding() {
         </motion.div>
       </motion.main>
 
+      {/* ── WORKFLOW STEPS ── */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: phase >= 3 ? 1 : 0, y: phase >= 3 ? 0 : 16 }}
+        transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-4 sm:px-8 lg:px-10"
+      >
+        <div className="flex items-center overflow-x-auto rounded-[20px] border border-neutral-800 bg-neutral-900/40 px-2 py-3 sm:px-4">
+          {workflowSteps.map((item, index) => (
+            <div key={item.step} className="flex shrink-0 items-center">
+              <div className="flex items-center gap-2 px-3 py-1.5 sm:px-4">
+                <span
+                  className="text-[10px] text-neutral-600"
+                  style={{ fontFamily: "monospace" }}
+                >
+                  {item.step}
+                </span>
+                <span className="text-[11px] uppercase tracking-[0.18em] text-neutral-300 whitespace-nowrap">
+                  {item.label}
+                </span>
+              </div>
+              {index < workflowSteps.length - 1 && (
+                <span className="text-neutral-700 text-xs px-1">→</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* ── DEVELOPER HIGHLIGHTS ── */}
       <motion.section
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: phase >= 3 ? 1 : 0, y: phase >= 3 ? 0 : 24 }}
@@ -166,7 +204,7 @@ export default function UnzapLanding() {
         id="resources"
       >
         <p className="text-neutral-500 text-[11px] tracking-widest uppercase" style={{ fontFamily: "monospace" }}>
-          Mainnet ready • Powered by Starkzap SDK
+          Mainnet ready • Cairo Contract Lab • Powered by Starkzap SDK
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           {resourceLinks.map((resource) => (

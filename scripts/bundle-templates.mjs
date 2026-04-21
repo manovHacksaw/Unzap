@@ -1,20 +1,39 @@
 /**
- * Reads all files under templates/nextjs/ and generates
+ * Reads template files from the @unzap/template workspace package and generates
  * lib/codegen/templateContents.ts with their contents as string literals.
+ *
+ * Templates live at: packages/template/ (bun workspace package)
  *
  * Run before `next build` so the API route never needs fs at runtime.
  */
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
+import { createRequire } from "module";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const templateDir = path.join(__dirname, "..", "templates");
+const require = createRequire(import.meta.url);
+
+// Resolve template root via workspace package — works whether installed via bun workspaces
+// or symlinked. Falls back to local packages/template for fresh checkouts before bun install.
+let templateDir;
+try {
+  const pkgPath = require.resolve("@unzap/template/package.json");
+  templateDir = path.dirname(pkgPath);
+} catch {
+  templateDir = path.join(__dirname, "..", "packages", "template");
+}
+
 const outputFile = path.join(__dirname, "..", "lib", "codegen", "templateContents.ts");
+
+console.log(`[bundle-templates] Reading from: ${templateDir}`);
+
+const IGNORE = new Set([".git", "node_modules", ".next", "dist", ".DS_Store"]);
 
 function readDirRecursive(dir, base = "") {
   const entries = {};
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (IGNORE.has(entry.name)) continue;
     const relPath = base ? `${base}/${entry.name}` : entry.name;
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {

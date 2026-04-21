@@ -56,6 +56,7 @@ interface InteractPanelProps {
   layout?: "panel" | "fullscreen";
   activeFileName?: string;
   notify?: (toast: StudioToastInput) => void;
+  onGetStarterApp?: () => void;
 }
 
 export function InteractPanel({
@@ -79,6 +80,7 @@ export function InteractPanel({
   layout = "panel",
   activeFileName = "",
   notify,
+  onGetStarterApp,
 }: InteractPanelProps) {
   const [customAddress, setCustomAddress] = useState("");
   const [customAbiText, setCustomAbiText] = useState("");
@@ -748,17 +750,7 @@ export function InteractPanel({
           {/* Starter app CTA — shown when a real contract is loaded */}
           {!useCustomTarget && effectiveAbi.length > 0 && (
             <button
-              onClick={() => {
-                try {
-                  localStorage.setItem(
-                    `unzap:workspace-abi:${effectiveAddress.toLowerCase()}`,
-                    JSON.stringify(effectiveAbi)
-                  );
-                } catch { /* ignore */ }
-                const name = activeFileName?.replace(/\.cairo$/, "") ?? "MyContract";
-                const url = `/studio/project-workspace?address=${encodeURIComponent(effectiveAddress)}&network=${network ?? "sepolia"}&name=${encodeURIComponent(name)}`;
-                window.open(url, "_blank");
-              }}
+              onClick={() => onGetStarterApp?.()}
               className="w-full mt-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-bold tracking-wide bg-gradient-to-r from-violet-600/80 to-indigo-600/80 hover:from-violet-500 hover:to-indigo-500 text-white transition-all"
             >
               <Sparkles className="w-3 h-3" />

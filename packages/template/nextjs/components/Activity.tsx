@@ -35,35 +35,51 @@ export function Activity({ logs }: ActivityProps) {
             <p className="text-[10px] font-bold uppercase tracking-widest">No activity yet</p>
           </div>
         ) : (
-          [...logs].reverse().map((log) => (
+          [...logs].reverse().map((log, index) => (
             <div
               key={log.id}
-              className="group flex gap-3 p-3 rounded-xl bg-zinc-900/10 border border-transparent hover:border-zinc-800/50 hover:bg-zinc-900/30 transition-all duration-300"
+              className="group flex gap-3 p-3 rounded-xl bg-zinc-900/10 border border-transparent hover:border-zinc-800/50 hover:bg-zinc-900/30 transition-all duration-300 animate-slide-in shadow-inner overflow-hidden"
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div className="mt-1 shrink-0">
-                {log.type === 'call' && <Zap size={12} className="text-orange-500" fill="currentColor" />}
-                {log.type === 'tx' && <Zap size={12} className="text-emerald-500" fill="currentColor" />}
+              <div className="mt-1 shrink-0 relative">
+                {log.type === 'call' && (
+                  <div className="relative">
+                    <Zap size={12} className="text-orange-500 relative z-10" fill="currentColor" />
+                    <div className="absolute inset-0 bg-orange-500/20 blur-[4px] animate-pulse" />
+                  </div>
+                )}
+                {log.type === 'tx' && (
+                  <div className="relative">
+                    <Zap size={12} className="text-emerald-500 relative z-10" fill="currentColor" />
+                    <div className="absolute inset-0 bg-emerald-500/20 blur-[4px] animate-pulse" />
+                  </div>
+                )}
                 {log.type === 'error' && <AlertCircle size={12} className="text-red-500" />}
                 {log.type === 'info' && <Info size={12} className="text-zinc-500" />}
-                {log.type === 'result' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1" />}
+                {log.type === 'result' && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                )}
               </div>
 
-              <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex-1 min-w-0 space-y-1.5">
                 <div className="flex items-center justify-between gap-4">
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${
-                    log.type === 'error' ? 'text-red-500/80' : 
-                    log.type === 'tx' ? 'text-emerald-500/80' : 
-                    log.type === 'call' ? 'text-orange-500/80' : 
-                    'text-zinc-600'
-                  }`}>
-                    {log.type}
-                  </span>
-                  <span className="text-[8px] font-bold text-zinc-700 tabular-nums">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${
+                      log.type === 'error' ? 'text-red-500/90' : 
+                      log.type === 'tx' ? 'text-emerald-400' : 
+                      log.type === 'call' ? 'text-orange-400' : 
+                      'text-zinc-500'
+                    }`}>
+                      {log.type}
+                    </span>
+                    <div className="w-1 h-1 rounded-full bg-zinc-800" />
+                  </div>
+                  <span className="text-[8px] font-bold text-zinc-700 tabular-nums uppercase">
                     {new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
                 </div>
                 
-                <div className="text-[11px] leading-relaxed text-zinc-400 break-all selection:bg-orange-500/30">
+                <div className="text-[11px] leading-relaxed text-zinc-400/90 break-all selection:bg-orange-500/30 group-hover:text-zinc-300 transition-colors">
                   {(() => {
                     if (!log.text.includes('·')) return log.text;
                     const parts = log.text.split('·');
@@ -74,14 +90,14 @@ export function Activity({ logs }: ActivityProps) {
                     
                     return (
                       <>
-                        {text}
+                        <span className="font-medium">{text}</span>
                         <a 
                           href={url} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-emerald-500 hover:text-emerald-400 ml-1 underline underline-offset-4 decoration-emerald-500/20"
+                          className="inline-flex items-center gap-1 text-emerald-500 hover:text-emerald-400 ml-1 underline underline-offset-4 decoration-emerald-500/20 font-bold"
                         >
-                          view <ExternalLink size={10} />
+                          EXPLORER <ExternalLink size={10} />
                         </a>
                       </>
                     );
