@@ -1,0 +1,61 @@
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+
+function normalizeDatabaseUrl(rawUrl: string) {
+    try {
+        const parsed = new URL(rawUrl);
+        const isSupabasePoolerHost = parsed.hostname.endsWith(".pooler.supabase.com");
+        const isTransactionPooler = isSupabasePoolerHost && parsed.port === "6543";
+
+        // Supabase recommends transaction mode + pgbouncer for Prisma in serverless runtimes.
+        if (isTransactionPooler && !parsed.searchParams.has("pgbouncer")) {
+            parsed.searchParams.set("pgbouncer", "true");
+        }
+
+        return parsed.toString();
+    } catch {
+        return rawUrl;
+    }
+}
+
+function getRuntimeDatabaseUrl() {
+    const configuredUrl =
+        process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL ?? process.env.POSTGRES_URL ?? "";
+    const rawUrl = configuredUrl.trim();
+
+    if (!rawUrl) {
+        throw new Error("DATABASE_URL is not configured.");
+    }
+
+    if (configuredUrl !== rawUrl) {
+        console.warn("[prisma] DATABASE_URL contained leading or trailing whitespace. Trimming before connecting.");
+    }
+
+    try {
+        const parsed = new URL(rawUrl);
+        const isDirectSupabaseHost = parsed.hostname.startsWith("db.") && parsed.hostname.endsWith(".supabase.co");
+
+        if (process.env.NODE_ENV === "production" && isDirectSupabaseHost) {
+            console.warn(
+                "[prisma] DATABASE_URL is using a direct Supabase host. For deployed/serverless runtimes, use the Supabase transaction pooler URL on port 6543 instead."
+            );
+        }
+    } catch {
+        // Ignore URL parsing failures here and let the underlying driver report the real connection issue.
+    }
+
+    return normalizeDatabaseUrl(rawUrl);
+}
+
+function createPrismaClient() {
+    const pool = new Pool({ connectionString: getRuntimeDatabaseUrl() });
+    const adapter = new PrismaPg(pool);
+    return new PrismaClient({ adapter });
+}
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+export const prisma = globalForPrisma.prisma || createPrismaClient();
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

@@ -1,0 +1,110 @@
+"use client";
+
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2, Shield, X, Copy, Check, ExternalLink } from "lucide-react";
+import { clsx } from "clsx";
+import { useState } from "react";
+
+interface DeployAccountPromptProps {
+  isOpen: boolean;
+  onClose: () => void;
+  networkLabel: string;
+  walletAddress: string;
+  isDeployingAccount: boolean;
+  onDeployAccount: () => void;
+}
+
+export function DeployAccountPrompt({
+  isOpen,
+  onClose,
+  networkLabel,
+  walletAddress,
+  isDeployingAccount,
+  onDeployAccount,
+}: DeployAccountPromptProps) {
+  const [copied, setCopied] = useState(false);
+  const isSepolia = networkLabel.toLowerCase().includes("sepolia");
+
+  const copy = () => {
+    navigator.clipboard.writeText(walletAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/70 backdrop-blur-[3px] z-[90]"
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.97 }}
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-full max-w-sm"
+          >
+            <div className="rounded-2xl border border-neutral-800 bg-[#0d0d0d] p-7 shadow-[0_32px_80px_rgba(0,0,0,0.8)]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Shield className="w-5 h-5 text-amber-500" />
+                  <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white">Account Not Deployed</h2>
+                </div>
+                <button onClick={onClose} className="p-1.5 hover:bg-white/5 rounded-full transition-colors">
+                  <X className="w-4 h-4 text-neutral-600" />
+                </button>
+              </div>
+              <p className="text-[11px] text-neutral-500 mb-4 leading-relaxed">
+                Your Privy wallet exists but the account contract hasn&apos;t been deployed on {networkLabel} yet. Deployment costs a small STRK fee paid from your account — send STRK to this address first:
+              </p>
+              {walletAddress && (
+                <button
+                  onClick={copy}
+                  className="w-full flex items-center justify-between gap-2 mb-4 px-3 py-2 rounded-lg bg-black/40 border border-neutral-800 hover:border-neutral-700 transition-colors group"
+                >
+                  <span className="font-mono text-[10px] text-neutral-400 truncate">{walletAddress}</span>
+                  {copied ? <Check className="w-3 h-3 text-emerald-500 flex-shrink-0" /> : <Copy className="w-3 h-3 text-neutral-600 group-hover:text-neutral-400 flex-shrink-0 transition-colors" />}
+                </button>
+              )}
+              <p className="text-[10px] text-amber-500/80 mb-6 leading-relaxed">
+                Once funded, click Deploy Account below.
+              </p>
+              {isSepolia && (
+                <a
+                  href="https://starknet-faucet.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mb-6 flex items-center justify-between rounded-xl border border-sky-500/20 bg-sky-500/5 px-3 py-2.5 text-[10px] text-sky-300 transition-colors hover:border-sky-400/30 hover:bg-sky-500/10"
+                >
+                  <span>Need testnet STRK? Open the Starknet faucet.</span>
+                  <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                </a>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-2.5 rounded-xl border border-neutral-700 text-neutral-400 font-bold text-[11px] uppercase tracking-widest hover:border-neutral-600 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={onDeployAccount}
+                  disabled={isDeployingAccount}
+                  className={clsx(
+                    "flex-1 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-[11px] uppercase tracking-widest hover:bg-amber-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  )}
+                >
+                  {isDeployingAccount ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deploying...</> : "Deploy Account"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}

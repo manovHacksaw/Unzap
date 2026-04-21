@@ -1,0 +1,12 @@
+services:
+  compiler:
+    build:
+      context: ./compiler
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      # Lock CORS to the Next.js domains in production.
+      ALLOWED_ORIGIN: "http://localhost:3000, https://unzap.xyz, https://unzap.vercel.app"
+    restart: unless-stopped
