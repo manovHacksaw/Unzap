@@ -12,11 +12,12 @@ import {
 } from "@codemirror/commands";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
+import { useCursor } from "../context/CursorContext";
 
 interface EditorProps {
   value: string;
   onChange: (val: string) => void;
-  onCursorChange: (line: number, col: number) => void;
+  onCursorChange?: (line: number, col: number) => void;
   readOnly: boolean;
   settings: {
     theme: string;
@@ -65,11 +66,6 @@ const studioHighlight = syntaxHighlighting(HighlightStyle.define([
   { tag: t.operator, color: "#a3a3a3" },
 ]));
 
-const commentKeymap = [{ key: "Mod-/", run: (v: EditorView) => { 
-  // Simplified comment toggle if needed, or use default
-  return false; 
-}}];
-
 export const Editor = memo(function Editor({
   value,
   onChange,
@@ -78,6 +74,7 @@ export const Editor = memo(function Editor({
   settings,
   onBuild,
 }: EditorProps) {
+  const { setCursor } = useCursor();
   
   const extensions = useMemo(() => [
     rust(),
@@ -111,7 +108,10 @@ export const Editor = memo(function Editor({
           const state = v.state;
           const pos = state.selection.main.head;
           const line = state.doc.lineAt(pos);
-          onCursorChange(line.number, pos - line.from + 1);
+          const l = line.number;
+          const c = pos - line.from + 1;
+          setCursor(l, c);
+          if (onCursorChange) onCursorChange(l, c);
         }
       }}
       basicSetup={{

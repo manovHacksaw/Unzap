@@ -3,13 +3,12 @@
 import { memo } from "react";
 import { clsx } from "clsx";
 import { Box, Activity, AlertCircle, Shield } from "lucide-react";
+import { useCursor } from "../context/CursorContext";
 
 interface StatusBarProps {
   network: string;
   accentColor: string;
   problemCount: number;
-  cursorLine: number;
-  cursorCol: number;
   walletAddress?: string;
   walletType?: string | null;
   onNetworkSwitch: (n: any) => void;
@@ -22,8 +21,6 @@ export const StatusBar = memo(function StatusBar({
   network,
   accentColor,
   problemCount,
-  cursorLine,
-  cursorCol,
   walletAddress,
   walletType,
   onNetworkSwitch,
@@ -31,6 +28,7 @@ export const StatusBar = memo(function StatusBar({
   onShowAccount,
   onShowAuth,
 }: StatusBarProps) {
+  const { cursorLine, cursorCol } = useCursor();
   return (
     <div className="flex items-center justify-between h-7 px-3 text-[10px] border-t border-neutral-800 bg-black/40 backdrop-blur-xl text-muted-foreground select-none">
       <div className="flex items-center gap-4 h-full">

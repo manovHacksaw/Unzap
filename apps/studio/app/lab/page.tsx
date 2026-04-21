@@ -76,6 +76,7 @@ import { useContractDeploy } from "./hooks/useContractDeploy";
 import { useHistory } from "./hooks/useHistory";
 import { useDraftPersistence } from "./hooks/useDraftPersistence";
 import { useLayoutResize } from "./hooks/useLayoutResize";
+import { CursorProvider } from "./context/CursorContext";
 
 // Utils & Consts
 import {
@@ -265,9 +266,6 @@ export default function StarkzapIDE() {
     { label: "State", value: buildStatus === "idle" ? "Build Required" : buildStatus === "building" ? "Compiling..." : buildStatus === "success" ? "Ready" : "Fix Errors", tone: buildStatus === "success" ? "emerald" : buildStatus === "building" ? "amber" : "sky" },
   ], [netConfig.label, network, wallet.walletAddress, wallet.walletType, buildStatus]);
 
-  const [cursorLine, setCursorLine] = useState(1);
-  const [cursorCol, setCursorCol] = useState(1);
-
   const diagnosticLineMap = useMemo(() => {
     const map = new Map<number, "error" | "warning">();
     compiler.errors.forEach((e) => { if (e.line > 0) map.set(e.line, "error"); });
@@ -340,6 +338,7 @@ export default function StarkzapIDE() {
   // ── 5. RENDER ──
   return (
     <TooltipProvider delayDuration={200}>
+      <CursorProvider>
       <div className="flex flex-col h-full min-h-0 bg-[#050505] text-neutral-400 font-sans overflow-hidden">
       {/* ── TOP BAR ── */}
       <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-800 bg-black/40 backdrop-blur-xl flex-shrink-0 z-20 gap-4">
@@ -595,10 +594,6 @@ export default function StarkzapIDE() {
                     <Editor
                       value={explorer.currentSource}
                       onChange={(val) => explorer.updateSource(val)}
-                      onCursorChange={(line, col) => {
-                        setCursorLine(line);
-                        setCursorCol(col);
-                      }}
                       readOnly={!!explorer.activeFile?.readonly}
                       settings={persistence.settings}
                       onBuild={compiler.handleBuild}
@@ -606,7 +601,6 @@ export default function StarkzapIDE() {
                   </div>
                 <div className="absolute top-4 right-6 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><div className="flex items-center gap-1.5 p-1 rounded-lg bg-neutral-900/80 backdrop-blur-md border border-neutral-800"><button onClick={compiler.handleBuild} className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400 hover:text-amber-500 transition-colors">Build</button><div className="w-px h-3 bg-neutral-800" /><CopyButton text={explorer.currentSource} label="Copy" onCopy={() => toasts.pushToast({ tone: "success", title: "Source copied" })} /></div></div>
               </div>
-              <div className="flex items-center justify-between h-5 px-3 bg-[#0a0a0a] border-t border-neutral-800 text-[10px] font-mono text-neutral-600 select-none"><div>Ln {cursorLine}, Col {cursorCol}</div><div className="flex gap-3"><span>{explorer.activeFile?.filename?.split('.').pop()?.toUpperCase()}</span><span>UTF-8</span></div></div>
               <div onMouseDown={() => layout.setIsResizingTerminal(true)} className={clsx("h-1 cursor-row-resize border-t border-neutral-800", layout.isResizingTerminal ? "bg-amber-500/40" : "bg-neutral-900 hover:bg-amber-500/30")} />
               <div className="flex flex-col border-t border-neutral-800 bg-black/30 backdrop-blur-sm" style={{ height: layout.terminalHeight }}>
                 <div className="flex items-center h-9 px-3 border-b border-neutral-800 justify-between bg-black/20">
@@ -641,8 +635,6 @@ export default function StarkzapIDE() {
         network={network}
         accentColor={accentColor}
         problemCount={explorer.problemCount}
-        cursorLine={cursorLine}
-        cursorCol={cursorCol}
         walletAddress={wallet.walletAddress}
         walletType={wallet.walletType}
         onNetworkSwitch={handleNetworkSwitch}
@@ -660,6 +652,7 @@ export default function StarkzapIDE() {
       <DeployAccountPrompt isOpen={showDeployAccountPrompt} onClose={() => setShowDeployAccountPrompt(false)} networkLabel={netConfig.label} walletAddress={wallet.walletAddress} isDeployingAccount={deploy.isDeployingAccount} onDeployAccount={deploy.handleDeployAccount} />
       <ToastViewport toasts={toasts.toasts} onDismiss={toasts.dismissToast} />
       </div>
+      </CursorProvider>
     </TooltipProvider>
   );
 }
