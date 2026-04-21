@@ -14,7 +14,7 @@ const features: BentoItem[] = [
   {
     title: "Contract Lab",
     description: "The ultimate command center for Cairo. Write, compile, and deploy contracts with an integrated file system.",
-    href: "/studio/contract-lab",
+    href: "/",
     image: "/previews/contract-lab-interact.png",
     className: "md:col-span-2 lg:col-span-2 lg:row-span-2 min-h-[400px]",
   },
@@ -58,67 +58,67 @@ export default function StudioDashboard() {
         {/* Header Section */}
         <section className="flex flex-col lg:flex-row lg:items-start justify-between gap-12 pt-8">
           <div className="space-y-8 max-w-4xl lg:pt-20">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3 text-[10px] sm:text-xs font-mono font-bold tracking-[0.2em] text-neutral-400 uppercase"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
-            Launchpad Studio
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-3 text-[10px] sm:text-xs font-mono font-bold tracking-[0.2em] text-neutral-400 uppercase"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
+              Launchpad Studio
+            </motion.div>
 
-          <div className="space-y-4">
-            <motion.h1
+            <div className="space-y-4">
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="text-5xl sm:text-7xl font-bold tracking-tight leading-[0.95]"
+              >
+                The Next Gen <br />
+                <span className="text-white">Cairo Studio.</span>
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.8 }}
+                className="text-neutral-500 text-lg sm:text-xl font-mono leading-relaxed max-w-xl"
+              >
+                From learning basics to production deployments, Unzap is your mission control for the Starknet ecosystem.
+              </motion.p>
+            </div>
+
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="text-5xl sm:text-7xl font-bold tracking-tight leading-[0.95]"
+              transition={{ delay: 0.3, duration: 0.8 }}
+              className="flex items-center gap-6 pt-4"
             >
-              The Next Gen <br />
-              <span className="text-white">Cairo Studio.</span>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
-              className="text-neutral-500 text-lg sm:text-xl font-mono leading-relaxed max-w-xl"
-            >
-              From learning basics to production deployments, Unzap is your mission control for the Starknet ecosystem.
-            </motion.p>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-mono text-neutral-600 uppercase font-bold tracking-wider">Network</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-neutral-300 font-mono">{netConfig.label}</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                </div>
+              </div>
+              <div className="w-px h-8 bg-neutral-800" />
+              <div className="flex items-center gap-4">
+                <button className="px-5 py-2.5 rounded-full bg-neutral-900 border border-neutral-800 text-[10px] font-bold text-neutral-400 hover:text-white hover:border-neutral-600 transition-all uppercase tracking-widest flex items-center gap-2">
+                  <Terminal className="w-3 h-3" />
+                  Dev API
+                </button>
+                <button className="px-5 py-2.5 rounded-full bg-white text-[10px] font-bold text-black hover:bg-neutral-200 transition-all uppercase tracking-widest flex items-center gap-2">
+                  <BookOpen className="w-3 h-3" />
+                  Docs
+                </button>
+              </div>
+            </motion.div>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.8 }}
-            className="flex items-center gap-6 pt-4"
-          >
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-mono text-neutral-600 uppercase font-bold tracking-wider">Network</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-300 font-mono">{netConfig.label}</span>
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              </div>
-            </div>
-            <div className="w-px h-8 bg-neutral-800" />
-            <div className="flex items-center gap-4">
-              <button className="px-5 py-2.5 rounded-full bg-neutral-900 border border-neutral-800 text-[10px] font-bold text-neutral-400 hover:text-white hover:border-neutral-600 transition-all uppercase tracking-widest flex items-center gap-2">
-                <Terminal className="w-3 h-3" />
-                Dev API
-              </button>
-              <button className="px-5 py-2.5 rounded-full bg-white text-[10px] font-bold text-black hover:bg-neutral-200 transition-all uppercase tracking-widest flex items-center gap-2">
-                <BookOpen className="w-3 h-3" />
-                Docs
-              </button>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Particle Logo - positioned in the "empty space" beside the text */}
-        <div className="hidden lg:block relative w-[450px] h-[450px] xl:w-[600px] xl:h-[600px] shrink-0 opacity-60 -translate-x-16 translate-y-20 pointer-events-none">
-           <HeroSphere />
-        </div>
-      </section>
+          {/* Particle Logo - positioned in the "empty space" beside the text */}
+          <div className="hidden lg:block relative w-[450px] h-[450px] xl:w-[600px] xl:h-[600px] shrink-0 opacity-60 -translate-x-16 translate-y-20 pointer-events-none">
+            <HeroSphere />
+          </div>
+        </section>
 
         {/* Feature Grid */}
         <section>

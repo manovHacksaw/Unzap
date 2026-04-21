@@ -375,7 +375,7 @@ export default function StarkzapIDE() {
     }
 
     // Fallback: use address directly via the deployments list page
-    router.push("/studio/deployments");
+    router.push("/deployments");
   }, [deploy.contractAddress, history.history.deployments, router]);
 
   const renderSidebarActions = () => {

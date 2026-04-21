@@ -30,7 +30,7 @@ function Redirect() {
     }
 
     // Fallback: go to deployments list
-    router.replace("/studio/deployments");
+    router.replace("/deployments");
   }, [router, searchParams]);
 
   return (

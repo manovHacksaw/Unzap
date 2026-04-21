@@ -431,7 +431,7 @@ function EmptyState({ hasSearch }: { hasSearch: boolean }) {
         Deploy a Cairo contract to see your projects here
       </p>
       <Link
-        href="/studio/contract-lab"
+        href="/"
         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-black text-xs font-bold hover:bg-amber-400 transition-colors"
       >
         <FlaskConical size={13} />
@@ -464,8 +464,8 @@ function AuthGate({ login }: { login: () => void }) {
 // ── Sidebar ───────────────────────────────────────────────────────────────
 
 const sidebarNav = [
-  { label: "Projects", href: "/studio/deployments", icon: <LayoutGrid size={14} />, active: true },
-  { label: "Contract Lab", href: "/studio/contract-lab", icon: <FlaskConical size={14} /> },
+  { label: "Projects", href: "/deployments", icon: <LayoutGrid size={14} />, active: true },
+  { label: "Contract Lab", href: "/", icon: <FlaskConical size={14} /> },
   { label: "Studio", href: "/studio", icon: <Code2 size={14} /> },
 ];
 
@@ -511,7 +511,7 @@ function Sidebar({ user }: { user: { email?: string; wallet?: string } | null })
             Tools
           </p>
           <Link
-            href="/studio/contract-lab"
+            href="/"
             className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium text-neutral-600 hover:text-neutral-300 hover:bg-white/4 transition-colors"
           >
             <Settings size={14} />
@@ -761,7 +761,7 @@ export default function DeploymentsPage() {
 
             {/* New project */}
             <Link
-              href="/studio/contract-lab"
+              href="/"
               className="hidden sm:flex items-center gap-1.5 h-7 px-3 rounded-lg bg-amber-500 text-black text-[11px] font-bold hover:bg-amber-400 transition-colors shrink-0"
             >
               <FlaskConical size={11} />
@@ -877,7 +877,7 @@ export default function DeploymentsPage() {
             {deployments.length} deployment{deployments.length !== 1 ? "s" : ""} total
           </span>
           <Link
-            href="/studio/contract-lab"
+            href="/"
             className="text-[10px] text-neutral-800 hover:text-neutral-500 transition-colors flex items-center gap-1"
           >
             Contract Lab

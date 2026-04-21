@@ -2,12 +2,14 @@
 
 import { PrivyProvider } from "@privy-io/react-auth";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { NetworkProvider } from "@/lib/NetworkContext";
 
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 
 export function UnzapProviders({ children }: { children: React.ReactNode }) {
   return (
-    <TooltipProvider delayDuration={300}>
+    <NetworkProvider>
+      <TooltipProvider delayDuration={300}>
       <PrivyProvider
         appId={PRIVY_APP_ID}
         config={{
@@ -22,6 +24,7 @@ export function UnzapProviders({ children }: { children: React.ReactNode }) {
       >
         {children}
       </PrivyProvider>
-    </TooltipProvider>
+      </TooltipProvider>
+    </NetworkProvider>
   );
 }

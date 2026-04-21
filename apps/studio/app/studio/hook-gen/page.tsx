@@ -12,7 +12,7 @@ import {
   ChevronRight, Zap, Loader2, Package, CheckCircle2,
   Shield, Server, Activity, type LucideIcon,
 } from "lucide-react";
-import type { AbiEntry } from "@/app/studio/contract-lab/types";
+import type { AbiEntry } from "@/app/lab/types";
 
 // ── fonts ─────────────────────────────────────────────────────────────────────
 const syne = Syne({ subsets: ["latin"], weight: ["400", "600", "700", "800"], variable: "--font-syne", display: "swap" });
@@ -317,7 +317,7 @@ function HookGenContent() {
         <aside style={{ width: "268px", flexShrink: 0, background: "#060606", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}>
 
           <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-            <Link href="/studio/contract-lab" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#404040", textDecoration: "none", fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", transition: "color 0.15s" }}
+            <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#404040", textDecoration: "none", fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", transition: "color 0.15s" }}
               onMouseEnter={e => (e.currentTarget.style.color = "#737373")} onMouseLeave={e => (e.currentTarget.style.color = "#404040")}>
               <ArrowLeft size={12} />Contract Lab
             </Link>
@@ -366,7 +366,7 @@ function HookGenContent() {
           <div style={{ padding: "16px 40px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: "8px", position: "sticky", top: 0, background: "rgba(4,4,4,0.88)", backdropFilter: "blur(12px)", zIndex: 10 }}>
             <span style={{ fontSize: "11px", color: "#2a2a2a" }}>Studio</span>
             <ChevronRight size={10} style={{ color: "#2a2a2a" }} />
-            <Link href="/studio/contract-lab" style={{ fontSize: "11px", color: "#2a2a2a", textDecoration: "none", transition: "color 0.15s" }}
+            <Link href="/" style={{ fontSize: "11px", color: "#2a2a2a", textDecoration: "none", transition: "color 0.15s" }}
               onMouseEnter={e => (e.currentTarget.style.color = "#525252")} onMouseLeave={e => (e.currentTarget.style.color = "#2a2a2a")}>
               Contract Lab
             </Link>

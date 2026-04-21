@@ -1,5 +1,1 @@
-import { redirect } from 'next/navigation';
-
-export default function Root() {
-  redirect('/studio');
-}
+export { default } from './lab/page';

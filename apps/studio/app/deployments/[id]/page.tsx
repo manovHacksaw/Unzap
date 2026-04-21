@@ -248,8 +248,8 @@ function Accordion({ title, children, defaultOpen = false }: { title: string; ch
 // ── Sidebar ───────────────────────────────────────────────────────────────
 
 const sidebarNav = [
-  { label: "Projects", href: "/studio/deployments", icon: <LayoutGrid size={14} /> },
-  { label: "Contract Lab", href: "/studio/contract-lab", icon: <FlaskConical size={14} /> },
+  { label: "Projects", href: "/deployments", icon: <LayoutGrid size={14} /> },
+  { label: "Contract Lab", href: "/", icon: <FlaskConical size={14} /> },
   { label: "Studio", href: "/studio", icon: <Code2 size={14} /> },
 ];
 
@@ -270,7 +270,7 @@ function Sidebar() {
         ))}
         <div className="pt-4">
           <p className="px-3 mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-700">Tools</p>
-          <Link href="/studio/contract-lab" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium text-neutral-600 hover:text-neutral-300 hover:bg-white/4 transition-colors">
+          <Link href="/" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium text-neutral-600 hover:text-neutral-300 hover:bg-white/4 transition-colors">
             <Settings size={14} />
             Settings
           </Link>
@@ -429,7 +429,7 @@ export default function DeploymentDetailPage({ params }: { params: Promise<{ id:
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
         <header className="flex items-center gap-3 px-6 py-3.5 border-b border-white/5 bg-[#070707] shrink-0">
-          <Link href="/studio/deployments" className="flex items-center gap-1.5 text-[11px] text-neutral-600 hover:text-neutral-300 transition-colors">
+          <Link href="/deployments" className="flex items-center gap-1.5 text-[11px] text-neutral-600 hover:text-neutral-300 transition-colors">
             <ArrowLeft size={13} />
             Deployments
           </Link>
@@ -438,7 +438,7 @@ export default function DeploymentDetailPage({ params }: { params: Promise<{ id:
             {deployment?.name || id}
           </span>
           <div className="ml-auto flex items-center gap-2">
-            <Link href="/studio/contract-lab" className="hidden sm:flex items-center gap-1.5 h-7 px-3 rounded-lg bg-white/4 border border-white/8 text-neutral-400 text-[11px] font-medium hover:bg-white/6 hover:text-neutral-200 transition-all">
+            <Link href="/" className="hidden sm:flex items-center gap-1.5 h-7 px-3 rounded-lg bg-white/4 border border-white/8 text-neutral-400 text-[11px] font-medium hover:bg-white/6 hover:text-neutral-200 transition-all">
               <FlaskConical size={11} />
               Contract Lab
             </Link>
@@ -471,7 +471,7 @@ export default function DeploymentDetailPage({ params }: { params: Promise<{ id:
             <div className="flex flex-col items-center justify-center py-40 gap-3">
               <XCircle size={28} className="text-neutral-700" />
               <p className="text-sm font-medium text-neutral-500">Deployment not found</p>
-              <Link href="/studio/deployments" className="text-[11px] text-amber-500 hover:text-amber-400 underline">
+              <Link href="/deployments" className="text-[11px] text-amber-500 hover:text-amber-400 underline">
                 ← Back to all deployments
               </Link>
             </div>
@@ -659,10 +659,10 @@ export default function DeploymentDetailPage({ params }: { params: Promise<{ id:
 
               {/* ── Footer ── */}
               <div className="flex items-center justify-between pt-4 border-t border-white/5 text-[10px] text-neutral-700">
-                <Link href="/studio/deployments" className="hover:text-neutral-500 transition-colors flex items-center gap-1">
+                <Link href="/deployments" className="hover:text-neutral-500 transition-colors flex items-center gap-1">
                   <ArrowLeft size={10} /> All deployments
                 </Link>
-                <Link href="/studio/contract-lab" className="hover:text-neutral-500 transition-colors flex items-center gap-1">
+                <Link href="/" className="hover:text-neutral-500 transition-colors flex items-center gap-1">
                   Contract Lab <ChevronRight size={10} />
                 </Link>
               </div>

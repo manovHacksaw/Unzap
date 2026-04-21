@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseAbi } from "@/lib/codegen/abiParser";
 import { generateHooksFile } from "@/lib/codegen/hookGenerator";
-import type { AbiEntry } from "@/app/studio/contract-lab/types";
+import type { AbiEntry } from "@/app/lab/types";
 import type { Network } from "@/lib/network-config";
 
 interface GenerateHooksBody {
