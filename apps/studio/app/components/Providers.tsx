@@ -8,8 +8,7 @@ const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 
 export function UnzapProviders({ children }: { children: React.ReactNode }) {
   return (
-    <NetworkProvider>
-      <TooltipProvider delayDuration={300}>
+    <TooltipProvider delayDuration={300}>
       <PrivyProvider
         appId={PRIVY_APP_ID}
         config={{
@@ -22,9 +21,10 @@ export function UnzapProviders({ children }: { children: React.ReactNode }) {
           // The Starknet wallet is provisioned via StarkZap after Privy login.
         }}
       >
-        {children}
+        <NetworkProvider>
+          {children}
+        </NetworkProvider>
       </PrivyProvider>
-      </TooltipProvider>
-    </NetworkProvider>
+    </TooltipProvider>
   );
 }

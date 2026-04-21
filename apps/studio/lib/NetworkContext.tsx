@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useMemo } from "react";
 import type { Network } from "./network-config";
 
 interface NetworkContextValue {
@@ -15,8 +15,14 @@ const NetworkContext = createContext<NetworkContextValue>({
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const [network, setNetwork] = useState<Network>("mainnet");
+  
+  const value = useMemo(() => ({
+    network,
+    setNetwork
+  }), [network]);
+
   return (
-    <NetworkContext.Provider value={{ network, setNetwork }}>
+    <NetworkContext.Provider value={value}>
       {children}
     </NetworkContext.Provider>
   );

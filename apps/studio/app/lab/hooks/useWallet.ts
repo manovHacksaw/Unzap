@@ -50,6 +50,13 @@ export function useWallet({
   const [sepoliaBalance, setSepoliaBalance] = useState<string | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
 
+  // --- External Stable Refs ---
+  // Privy's return values aren't always stable. We ref them to prevent handler churn.
+  const privyRefs = useRef({ authenticated, privyReady, getAccessToken, login });
+  useEffect(() => {
+    privyRefs.current = { authenticated, privyReady, getAccessToken, login };
+  }, [authenticated, privyReady, getAccessToken, login]);
+
   const walletReconnectAttemptRef = useRef<string | null>(null);
 
   // --- Session persistence ---
@@ -150,9 +157,10 @@ export function useWallet({
   // --- Connection handlers ---
   const connectPrivyWallet = useCallback(
     async ({ silent = false, restore = false }: WalletConnectOptions = {}) => {
-      if (!privyReady) return;
-      if (!authenticated) {
-        if (!silent) login();
+      const { privyReady: ready, authenticated: auth, getAccessToken: getAt, login: doLogin } = privyRefs.current;
+      if (!ready) return;
+      if (!auth) {
+        if (!silent) doLogin();
         return;
       }
       if (!sdkRef.current) return;
@@ -161,7 +169,7 @@ export function useWallet({
       if (!silent) setWalletError(null);
 
       try {
-        const accessToken = await getAccessToken();
+        const accessToken = await getAt();
         const { wallet: connectedWallet } = await sdkRef.current.onboard({
           strategy: OnboardStrategy.Privy,
           privy: {
@@ -218,7 +226,7 @@ export function useWallet({
         setIsWalletConnecting(false);
       }
     },
-    [addLog, authenticated, fetchStrkBalance, getAccessToken, login, persistWalletSession, privyReady, pushToast, sdkRef]
+    [addLog, fetchStrkBalance, persistWalletSession, pushToast, sdkRef]
   );
 
   const connectExtensionWallet = useCallback(
