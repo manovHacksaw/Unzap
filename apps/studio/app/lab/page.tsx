@@ -2,18 +2,6 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import CodeMirror from "@uiw/react-codemirror";
-import { rust } from "@codemirror/lang-rust";
-import { oneDark } from "@codemirror/theme-one-dark";
-import { EditorView, keymap } from "@codemirror/view";
-import { 
-  defaultKeymap, 
-  historyKeymap, 
-  indentWithTab,
-  toggleComment 
-} from "@codemirror/commands";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { tags as t } from "@lezer/highlight";
 import { usePrivy } from "@privy-io/react-auth";
 import { StarkZap } from "starkzap";
 import { useNetwork } from "@/lib/NetworkContext";
@@ -75,6 +63,8 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { InteractPanel } from "./components/InteractPanel";
 import { DeployPanel } from "./components/DeployPanel";
 import { ToastViewport } from "./components/ToastViewport";
+import { Editor } from "./components/Editor";
+import { StatusBar } from "./components/StatusBar";
 
 // Hooks
 import { useIdeTerminal } from "./hooks/useIdeTerminal";
@@ -248,63 +238,26 @@ export default function StarkzapIDE() {
     }
   }, [persistence.settings.theme]);
 
-  const studioTheme = useMemo(() => {
-    return EditorView.theme({
-      "&": {
-        backgroundColor: "#050505 !important",
-        fontSize: `${persistence.settings.fontSize}px`,
-        height: "100%",
-      },
-      ".cm-gutters": {
-        backgroundColor: "transparent !important",
-        borderRight: "1px solid rgba(255,255,255,0.05)",
-        color: "#404040",
-      },
-      ".cm-activeLine": {
-        backgroundColor: "rgba(255, 186, 5, 0.03)",
-      },
-      ".cm-activeLineGutter": {
-        backgroundColor: "transparent",
-        color: "#fbbf24",
-      },
-      ".cm-cursor": {
-        borderLeftColor: "#fbbf24",
-        borderLeftWidth: "2px",
-      },
-      ".cm-selectionBackground, ::selection": {
-        backgroundColor: "#fbbf2433 !important",
-      },
-      ".cm-content": {
-        caretColor: "#ffba05 !important",
-        fontFamily: 'inherit',
-      },
-    }, { dark: true });
-  }, [persistence.settings.fontSize]);
+  const interactFunctions = useMemo(() => {
+    const firstH = history.history.deployments[0];
+    const interactAbi: AbiEntry[] = explorer.activeBuildData?.abi ?? (typeof firstH?.abi === 'string' ? JSON.parse(firstH.abi) : []) ?? [];
+    const fns: AbiEntry[] = [];
+    for (const entry of interactAbi) {
+      if (entry.type === "function" && entry.state_mutability) fns.push(entry);
+      else if ((entry.type === "impl" || entry.type === "interface") && Array.isArray(entry.items)) { 
+        for (const item of (entry.items as AbiEntry[]) || []) { 
+          if (item.state_mutability) fns.push(item); 
+        } 
+      }
+    }
+    const allFns = fns.filter((fn, i, arr) => arr.findIndex(f => f.name === fn.name) === i);
+    return {
+      all: allFns,
+      view: allFns.filter(f => f.state_mutability === "view"),
+      write: allFns.filter(f => f.state_mutability === "external" || f.state_mutability === "external_v0"),
+    };
+  }, [explorer.activeBuildData, history.history.deployments]);
 
-  const studioHighlight = useMemo(() => {
-    return syntaxHighlighting(HighlightStyle.define([
-      { tag: t.keyword, color: "#C678DD", fontWeight: "bold" },
-      { tag: t.definitionKeyword, color: "#C678DD", fontWeight: "bold" },
-      { tag: t.typeName, color: "#E5C07B" },
-      { tag: t.className, color: "#E5C07B" },
-      { tag: t.function(t.variableName), color: "#61AFEF" },
-      { tag: t.function(t.definition(t.variableName)), color: "#61AFEF" },
-      { tag: t.comment, color: "#5C6370", fontStyle: "italic" },
-      { tag: t.string, color: "#98C379" },
-      { tag: t.number, color: "#D19A66" },
-      { tag: t.bool, color: "#D19A66" },
-      { tag: t.operator, color: "#56B6C2" },
-      { tag: t.attributeName, color: "#C678DD" },
-      { tag: t.bracket, color: "#abb2bf" },
-      { tag: t.propertyName, color: "#e06c75" },
-      { tag: t.variableName, color: "#abb2bf" },
-      { tag: t.macroName, color: "#C678DD" },
-    ]));
-  }, []);
-
-  const commentKeymap = useMemo(() => [
-    { key: "Mod-/", run: toggleComment }
-  ], []);
 
   const workspaceSignals = useMemo(() => [
     { label: "Network", value: netConfig.label, tone: network === "mainnet" ? "amber" : "sky" },
@@ -600,16 +553,7 @@ export default function StarkzapIDE() {
                 {activeSidebarTab === "interact" && (
                   <div className="p-3 space-y-1 overflow-y-auto h-full no-scrollbar">
                     {(() => {
-                      const firstH = history.history.deployments[0];
-                      const interactAbi: AbiEntry[] = explorer.activeBuildData?.abi ?? (typeof firstH?.abi === 'string' ? JSON.parse(firstH.abi) : []) ?? [];
-                      const fns: AbiEntry[] = [];
-                      for (const entry of interactAbi) {
-                        if (entry.type === "function" && entry.state_mutability) fns.push(entry);
-                        else if ((entry.type === "impl" || entry.type === "interface") && Array.isArray(entry.items)) { for (const item of (entry.items as AbiEntry[]) || []) { if (item.state_mutability) fns.push(item); } }
-                      }
-                      const allFns = fns.filter((fn, i, arr) => arr.findIndex(f => f.name === fn.name) === i);
-                      const viewFns = allFns.filter(f => f.state_mutability === "view");
-                      const writeFns = allFns.filter(f => f.state_mutability === "external" || f.state_mutability === "external_v0");
+                      const { view: viewFns, write: writeFns, all: allFns } = interactFunctions;
                       if (allFns.length === 0) return <div className="flex flex-col items-center justify-center py-12 text-[10px] text-neutral-600 text-center"><Zap className="w-6 h-6 mb-3 text-neutral-700" />Deploy a contract first.</div>;
                       return (
                         <>
@@ -648,49 +592,16 @@ export default function StarkzapIDE() {
               </div>
               <div className="flex-1 relative overflow-hidden group">
                   <div className="relative flex-1 h-full overflow-hidden">
-                    <CodeMirror
+                    <Editor
                       value={explorer.currentSource}
-                      height="100%"
-                      theme="dark"
-                      extensions={[
-                        rust(),
-                        oneDark,
-                        persistence.settings.lineWrapping ? EditorView.lineWrapping : [],
-                        studioTheme,
-                        studioHighlight,
-                        keymap.of([
-                          ...defaultKeymap,
-                          ...historyKeymap,
-                          ...commentKeymap,
-                          indentWithTab,
-                          {
-                            key: "Mod-s",
-                            run: () => {
-                              compiler.handleBuild();
-                              return true;
-                            },
-                          },
-                        ]),
-                      ]}
                       onChange={(val) => explorer.updateSource(val)}
-                      onUpdate={(v) => {
-                        if (v.docChanged || v.selectionSet) {
-                          const state = v.state;
-                          const pos = state.selection.main.head;
-                          const line = state.doc.lineAt(pos);
-                          setCursorLine(line.number);
-                          setCursorCol(pos - line.from + 1);
-                        }
-                      }}
-                      basicSetup={{
-                        lineNumbers: persistence.settings.showLineNumbers,
-                        foldGutter: true,
-                        dropCursor: true,
-                        allowMultipleSelections: true,
-                        indentOnInput: true,
+                      onCursorChange={(line, col) => {
+                        setCursorLine(line);
+                        setCursorCol(col);
                       }}
                       readOnly={!!explorer.activeFile?.readonly}
-                      className="h-full focus:outline-none"
+                      settings={persistence.settings}
+                      onBuild={compiler.handleBuild}
                     />
                   </div>
                 <div className="absolute top-4 right-6 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><div className="flex items-center gap-1.5 p-1 rounded-lg bg-neutral-900/80 backdrop-blur-md border border-neutral-800"><button onClick={compiler.handleBuild} className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400 hover:text-amber-500 transition-colors">Build</button><div className="w-px h-3 bg-neutral-800" /><CopyButton text={explorer.currentSource} label="Copy" onCopy={() => toasts.pushToast({ tone: "success", title: "Source copied" })} /></div></div>
@@ -726,33 +637,19 @@ export default function StarkzapIDE() {
       </div>
 
       {/* ── STATUS BAR ── */}
-      <div className="flex items-center justify-between h-7 px-3 text-[10px] border-t border-neutral-800 bg-black/40 backdrop-blur-xl text-muted-foreground select-none">
-        <div className="flex items-center gap-4 h-full">
-          <div className="flex items-center gap-1.5 h-full px-2 hover:bg-white/5 cursor-pointer" onClick={() => handleNetworkSwitch(network === "mainnet" ? "sepolia" : "mainnet")}>
-            <Box className={clsx("w-3 h-3", accentColor)} /><span className="font-medium">{network === "mainnet" ? "Mainnet" : "Sepolia"}</span>
-          </div>
-          <div className="flex items-center gap-1.5 h-full px-2">
-            <Activity className="w-3 h-3 text-neutral-600" /><span className="font-medium">main*</span>
-          </div>
-          <div className="flex items-center gap-1.5 h-full px-2 cursor-pointer" onClick={() => setActiveBottomTab("problems")}>
-            <AlertCircle className={clsx("w-3 h-3", explorer.problemCount > 0 ? "text-red-500" : "text-neutral-700")} /><span className="font-medium">{explorer.problemCount}</span>
-          </div>
-          <div className="w-px h-3 bg-neutral-800/50" />
-          <div className="font-mono text-neutral-500">Ln {cursorLine}, Col {cursorCol}</div>
-        </div>
-        <div className="flex items-center gap-4 h-full">
-          <div className="flex items-center gap-3"><span className="uppercase tracking-widest font-bold">UTF-8</span><div className="w-px h-3 bg-neutral-800/50" /><span className={clsx("font-black uppercase tracking-[0.2em]", accentColor)}>Cairo</span></div>
-          <div className="w-px h-3 bg-neutral-800/50" />
-          {wallet.walletAddress ? (
-            <button onClick={() => wallet.setShowAccountModal(true)} className={clsx("flex items-center gap-1.5 font-bold hover:opacity-80 transition-opacity", wallet.walletType === "privy" ? "text-amber-400/90" : "text-sky-400/90")}>
-              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{wallet.walletType === "privy" ? "Privy" : "Extension"} · {wallet.walletAddress.slice(0, 8)}...</span>
-            </button>
-          ) : (
-            <button onClick={() => wallet.setShowAuthModal(true)} className="flex items-center gap-1.5 font-bold text-neutral-600 hover:text-amber-400 transition-colors"><Shield className="w-3 h-3" /><span>No Wallet</span></button>
-          )}
-        </div>
-      </div>
+      <StatusBar
+        network={network}
+        accentColor={accentColor}
+        problemCount={explorer.problemCount}
+        cursorLine={cursorLine}
+        cursorCol={cursorCol}
+        walletAddress={wallet.walletAddress}
+        walletType={wallet.walletType}
+        onNetworkSwitch={handleNetworkSwitch}
+        onShowProblems={() => setActiveBottomTab("problems")}
+        onShowAccount={() => wallet.setShowAccountModal(true)}
+        onShowAuth={() => wallet.setShowAuthModal(true)}
+      />
 
       <AnimatePresence>
         {wallet.showAuthModal && (<><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => wallet.setShowAuthModal(false)} className="fixed inset-0 bg-black/70 backdrop-blur-[3px] z-[90]" /><motion.div initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.97 }} className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-full max-w-md"><AuthModal authenticated={authenticated} isConnecting={wallet.isWalletConnecting} walletError={wallet.walletError} onPrivyConnect={wallet.connectPrivyWallet} onExtensionConnect={wallet.connectExtensionWallet} onClose={() => { wallet.setShowAuthModal(false); wallet.setWalletError(null); }} networkLabel={netConfig.label} /></motion.div></>)}
