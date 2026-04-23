@@ -98,11 +98,33 @@ bun dev
 ```
 Navigate to `http://localhost:3000/studio/contract-lab`.
 
-## 📜 Documentation Links
-- [FEATURES.md](./FEATURES.md) - Deep dive into all capabilities.
-- [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) - How it works under the hood.
-- [JOURNEY.md](./JOURNEY.md) - The 5-day beginner journey.
-- [FUTURE_IMPROVEMENTS.md](./FUTURE_IMPROVEMENTS.md) - Roadmap and visions.
+## 📜 Documentation
+
+For a complete, step-by-step guide on how to use Unzap Contract Lab, please refer to our consolidated documentation:
+
+👉 **[UNZAP_DOCUMENTATION.md](./UNZAP_DOCUMENTATION.md)**
+
+This single file covers:
+- **Getting Started** (Prerequisites & Quickstart)
+- **Core Concepts** (Templates, Cairo, Gasless Flow)
+- **Usage Guide** (Create, Compile, Deploy)
+- **Example Workflow** (Counter dApp Walkthrough)
+- **Architecture** & **Advanced Usage**
+- **FAQ & Troubleshooting**
+
+### 📄 Modular Guides
+Alternatively, explore specific topics:
+- **[Introduction](./docs/introduction.md)**
+- **[Getting Started](./docs/getting-started.md)**
+- **[Core Concepts](./docs/core-concepts.md)**
+- **[Usage Guide](./docs/usage-guide.md)**
+- **[Architecture](./docs/architecture.md)**
+
+### 📄 Other Resources
+- [FEATURES.md](./FEATURES.md) - Deep dive into capabilities.
+- [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) - Internal system design.
+- [JOURNEY.md](./JOURNEY.md) - The story behind Unzap.
+
 
 ## ⚖️ License
 MIT Copyright (c) 2026.
