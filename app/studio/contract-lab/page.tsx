@@ -26,7 +26,6 @@ import {
   Box,
   History,
   ChevronDown,
-  ChevronRight,
   Copy,
   FileCode,
   Activity,
@@ -39,7 +38,6 @@ import {
   Edit2,
   FilePlus,
   XCircle,
-  FileText,
   Terminal,
   TestTube,
   Play,
@@ -549,10 +547,7 @@ export default function StarkzapIDE() {
                       <div>
                         {history.history.deployments.map((d: ContractHistoryItem) => (
                           <div key={d.id} onClick={() => {
-                            const restoredAbi = normalizeAbiEntries(d.abi);
-                            deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({});
-                            terminal.addLog(`[history] Loaded ${d.contractAddress.slice(0, 10)}... with ${restoredAbi.length} ABI entries.`);
-                            toasts.pushToast({ tone: "info", title: "Deployment restored", description: `${d.name || "Contract"} is back.` });
+                            window.open(`/deployments/${d.id}`, "_blank");
                           }} className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300">
                             <Box className="w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50" />
                             <div className="flex flex-col truncate"><span className="truncate text-neutral-300 font-medium">{d.name || "Contract"}</span><span className="text-[9px] font-mono text-neutral-600 truncate">{d.contractAddress.slice(0, 10)}...</span></div>

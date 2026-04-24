@@ -14,12 +14,10 @@ import {
   Box,
   History,
   ChevronDown,
-  ChevronRight,
   Copy,
   FileCode,
   Activity,
   Zap,
-  Shield,
   Trash2,
   CheckCircle2,
   AlertCircle,
@@ -27,7 +25,6 @@ import {
   Edit2,
   FilePlus,
   XCircle,
-  FileText,
   Terminal,
   TestTube,
   Play,
@@ -501,10 +498,7 @@ export default function StarkzapIDE() {
                       <div>
                         {history.history.deployments.map((d: ContractHistoryItem) => (
                           <div key={d.id} onClick={() => {
-                            const restoredAbi = normalizeAbiEntries(d.abi);
-                            deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({});
-                            terminal.addLog(`[history] Loaded ${d.contractAddress.slice(0, 10)}... with ${restoredAbi.length} ABI entries.`);
-                            toasts.pushToast({ tone: "info", title: "Deployment restored", description: `${d.name || "Contract"} is back.` });
+                            window.open(`/deployments/${d.id}`, "_blank");
                           }} className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300">
                             <Box className="w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50" />
                             <div className="flex flex-col truncate"><span className="truncate text-neutral-300 font-medium">{d.name || "Contract"}</span><span className="text-[9px] font-mono text-neutral-600 truncate">{d.contractAddress.slice(0, 10)}...</span></div>
@@ -530,7 +524,7 @@ export default function StarkzapIDE() {
                     <div>
                       <div className="flex items-center justify-between mb-4"><div className="text-[10px] text-neutral-600 uppercase tracking-widest font-bold">Recent Deployments</div><Zap className="w-2.5 h-2.5 text-neutral-800" /></div>
                       {history.history.deployments.length === 0 ? <div className="text-[10px] text-neutral-700 italic border border-dashed border-neutral-900 rounded-lg p-6 text-center">No deployments found.</div> : (
-                        <div className="space-y-2">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} onGenerateApp={() => { router.push(`/deployments/${d.id}`); }} />))}</div>
+                        <div className="space-y-2">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} onGenerateApp={() => { window.open(`/deployments/${d.id}`, "_blank"); }} />))}</div>
                       )}
                     </div>
                     <div>
