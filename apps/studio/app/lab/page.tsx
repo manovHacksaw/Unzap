@@ -415,8 +415,7 @@ export default function StarkzapIDE() {
               <PanelHeader title={sidebarTitleMap[activeSidebarTab] ?? activeSidebarTab}>
                 {renderSidebarActions()}
               </PanelHeader>
-              <div className="flex-1 min-h-0 relative" onContextMenu={(e) => explorer.openContextMenu(e, null)}>
-              <div className="absolute inset-0 overflow-y-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto" onContextMenu={(e) => explorer.openContextMenu(e, null)}>
                 {activeSidebarTab === "explorer" && (
                   <div className="py-2">
                     <div onClick={() => toggleSection('src')} className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase text-neutral-500 mb-1 group cursor-pointer hover:bg-white/[0.02] select-none">
@@ -574,7 +573,6 @@ export default function StarkzapIDE() {
                     })()}
                   </div>
                 )}
-              </div>
               </div>
             </motion.div>
           )}
