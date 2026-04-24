@@ -8,7 +8,7 @@ const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 
 export function UnzapProviders({ children }: { children: React.ReactNode }) {
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider delay={300}>
       <PrivyProvider
         appId={PRIVY_APP_ID}
         config={{

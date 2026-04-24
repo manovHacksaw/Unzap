@@ -97,6 +97,11 @@ const sidebarTitleMap: Record<string, string> = {
 };
 
 export default function StarkzapIDE() {
+  const jumpToLineCol = (line: number, col: number) => {
+    terminal.addLog(`[editor] Jumping to Line ${line}, Col ${col}`);
+    // TODO: Implement actual editor scroll/focus logic if needed
+  };
+
   // ── 1. GLOBAL CONTEXTS & REFS ──
   const { ready: privyReady, authenticated, getAccessToken, login, logout } = usePrivy();
   const { network, setNetwork } = useNetwork();
@@ -333,7 +338,7 @@ export default function StarkzapIDE() {
 
   // ── 5. RENDER ──
   return (
-    <TooltipProvider delayDuration={200}>
+    <TooltipProvider delay={200}>
       <CursorProvider>
       <div className="flex flex-col h-screen min-h-0 bg-[#050505] text-neutral-400 font-sans overflow-hidden">
       {/* ── TOP BAR ── */}
