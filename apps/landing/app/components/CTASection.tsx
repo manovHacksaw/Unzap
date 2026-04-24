@@ -51,7 +51,7 @@ export default function CTASection() {
 
                 <motion.div whileHover={{ scale: 1.05 }}>
                     <a
-                        href={`${APP}/studio/contract-lab`}
+                        href={APP}
                         target="_blank"
                         rel="noreferrer"
                         className="block border px-5 py-2.5 text-xs uppercase tracking-widest text-white transition-all hover:bg-white/5"

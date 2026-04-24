@@ -7,7 +7,7 @@ import Link from "next/link";
 const APP = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.unzap.xyz";
 
 const navLinks = [
-    { label: "CONTRACT LAB", href: `${APP}/studio/contract-lab`, external: true },
+    { label: "CONTRACT LAB", href: APP, external: true },
     { label: "PROJECTS",     href: `${APP}/deployments`,         external: true },
     { label: "STUDIO",       href: `${APP}/studio`,              external: true },
     { label: "WORKFLOW",     href: "/#solutions" },
