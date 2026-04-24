@@ -106,7 +106,11 @@ export async function POST(req: Request) {
         );
       }
     } catch (dbErr) {
-      console.warn("[api/declare] Rate limit check failed:", dbErr);
+      console.error("[api/declare] Rate limit check failed — blocking sponsorship as a precaution:", dbErr);
+      return NextResponse.json(
+        { error: "Rate limit check unavailable. Please try again shortly." },
+        { status: 503 }
+      );
     }
 
     const { privateKey: deployerPrivateKey, address: deployerAddress } = getSponsorCredentials(networkName);
@@ -151,8 +155,7 @@ export async function POST(req: Request) {
       console.error("[api/declare] Could not log sponsored declaration to DB:", dbLogErr);
     }
 
-    await provider.waitForTransaction(result.transaction_hash);
-
+    // Return immediately — client polls for confirmation via the RPC node.
     return NextResponse.json({
       classHash: result.class_hash,
       txHash: result.transaction_hash,

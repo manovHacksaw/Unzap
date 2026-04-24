@@ -7,6 +7,7 @@ import {
   Terminal,
   BookOpen,
 } from "lucide-react";
+import Link from "next/link";
 import { StudioBentoGrid, type BentoItem } from "@/app/components/StudioBentoGrid";
 import HeroSphere from "@/app/components/HeroSphere";
 
@@ -102,14 +103,20 @@ export default function StudioDashboard() {
               </div>
               <div className="w-px h-8 bg-neutral-800" />
               <div className="flex items-center gap-4">
-                <button className="px-5 py-2.5 rounded-full bg-neutral-900 border border-neutral-800 text-[10px] font-bold text-neutral-400 hover:text-white hover:border-neutral-600 transition-all uppercase tracking-widest flex items-center gap-2">
+                <Link
+                  href="/studio/hook-gen"
+                  className="px-5 py-2.5 rounded-full bg-neutral-900 border border-neutral-800 text-[10px] font-bold text-neutral-400 hover:text-white hover:border-neutral-600 transition-all uppercase tracking-widest flex items-center gap-2"
+                >
                   <Terminal className="w-3 h-3" />
                   Dev API
-                </button>
-                <button className="px-5 py-2.5 rounded-full bg-white text-[10px] font-bold text-black hover:bg-neutral-200 transition-all uppercase tracking-widest flex items-center gap-2">
+                </Link>
+                <Link
+                  href="/studio/playground"
+                  className="px-5 py-2.5 rounded-full bg-white text-[10px] font-bold text-black hover:bg-neutral-200 transition-all uppercase tracking-widest flex items-center gap-2"
+                >
                   <BookOpen className="w-3 h-3" />
                   Docs
-                </button>
+                </Link>
               </div>
             </motion.div>
           </div>

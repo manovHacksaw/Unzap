@@ -10,34 +10,37 @@ interface CairoError {
 }
 
 export async function POST(req: Request) {
-    const { source, error } = await req.json() as { source: string; error: CairoError };
+    let body: { source?: unknown; error?: unknown };
+    try {
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
 
-    if (!source || !error) {
+    const { source, error } = body;
+    if (typeof source !== 'string' || !source || !error || typeof error !== 'object') {
         return NextResponse.json({ error: 'Missing source or error information' }, { status: 400 });
     }
 
-    console.log(`[AI FIX] Request received. API Key configured: ${!!process.env.GOOGLE_GENERATIVE_AI_API_KEY}`);
+    const cairoError = error as CairoError;
+
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+        console.warn('[AI FIX] No API key configured — falling back to heuristics.');
+        return getHeuristicFix(source, cairoError);
+    }
 
     try {
         try {
-            console.log(`[AI FIX] Attempting gemini-2.0-flash...`);
-            return await callGemini(source, error, 'gemini-2.0-flash');
+            return await callGemini(source, cairoError, 'gemini-2.0-flash');
         } catch (e1: unknown) {
-            const err = e1 as Error;
-            console.warn(`[AI FIX] gemini-2.0-flash failed: ${err.message}`);
-            try {
-                console.log(`[AI FIX] Attempting gemini-1.5-flash...`);
-                return await callGemini(source, error, 'gemini-1.5-flash');
-            } catch (e2: unknown) {
-                const err2 = e2 as Error;
-                console.warn(`[AI FIX] gemini-1.5-flash failed: ${err2.message}`);
-                throw err2;
-            }
+            const err1 = e1 instanceof Error ? e1 : new Error(String(e1));
+            console.warn(`[AI FIX] gemini-2.0-flash failed: ${err1.message}`);
+            return await callGemini(source, cairoError, 'gemini-1.5-flash');
         }
     } catch (finalError: unknown) {
-        const err = finalError as Error;
+        const err = finalError instanceof Error ? finalError : new Error(String(finalError));
         console.warn(`[AI FIX] All models failed: ${err.message}. Using heuristics.`);
-        return getHeuristicFix(source, error);
+        return getHeuristicFix(source, cairoError);
     }
 }
 
@@ -191,8 +194,8 @@ function getHeuristicFix(source: string, error: CairoError) {
     }
 
     return NextResponse.json({
-        suggestion: "Gemini API quota exhausted (429). The AI fix service is temporarily unavailable. Please try again later or check your Google AI Studio billing.",
-        description: "All AI models are rate-limited."
+        suggestion: "The AI fix service is temporarily unavailable. Please try again later.",
+        description: "AI service unavailable."
     });
 }
 

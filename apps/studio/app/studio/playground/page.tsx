@@ -2,13 +2,15 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  StarkZap, 
-  OnboardStrategy, 
-  accountPresets, 
-  getPresets, 
-  Amount, 
-  fromAddress 
+import type { ElementType } from "react";
+import {
+  StarkZap,
+  OnboardStrategy,
+  accountPresets,
+  getPresets,
+  Amount,
+  fromAddress,
+  type WalletInterface,
 } from "starkzap";
 import { usePrivy } from "@privy-io/react-auth";
 import { useNetwork } from "@/lib/NetworkContext";
@@ -49,7 +51,7 @@ interface AcademyGuide {
   markdown: string;
   annotations: CodeAnnotation[];
   snippet: string;
-  pipelineSteps: { id: string, label: string, icon: any }[];
+  pipelineSteps: { id: string; label: string; icon: ElementType }[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,13 +68,13 @@ export default function AcademyPage() {
   
   // --- STATE: SDK & WALLET ---
   const sdkRef = useRef<StarkZap | null>(null);
-  const [wallet, setWallet] = useState<any>(null);
+  const [wallet, setWallet] = useState<WalletInterface | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
 
   // --- STATE: LAB OUTPUT ---
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [activeLine, setActiveLine] = useState<number | undefined>(undefined);
 
   // Initialize SDK
@@ -103,8 +105,8 @@ export default function AcademyPage() {
       else if (activeSubModule === "paymaster") await runSponsoredPay();
       else if (activeSubModule === "sign") await runSignMessage();
       else if (activeSubModule === "execute") await runUniversalCall();
-    } catch (e: any) {
-      setError(e.message || String(e));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsExecuting(false);
     }

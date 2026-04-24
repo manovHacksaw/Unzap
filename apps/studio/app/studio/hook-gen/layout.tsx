@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "Hook Generator" };
+export const metadata: Metadata = { title: "React Hook Generator" };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
