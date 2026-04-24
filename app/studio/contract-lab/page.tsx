@@ -472,7 +472,7 @@ export default function StarkzapIDE() {
                       src
                     </div>
                     {!collapsedSections['src'] && (
-                      <div className="max-h-[30vh] overflow-y-auto no-scrollbar">
+                      <div className="max-h-[30vh] overflow-y-auto">
                         {explorer.sourceFiles.map((f) => (
                           <div key={f.id} onClick={() => explorer.setActiveFileId(f.id)} onContextMenu={(e) => explorer.openContextMenu(e, f.id)} className={clsx("group w-full flex items-center gap-2 px-6 py-1 text-xs transition-colors cursor-pointer relative", explorer.activeFileId === f.id ? clsx(persistence.settings.theme === 'mono' ? "bg-white/10 text-white" : `${accentBg}/10 ${accentColor}`) : "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300")}>
                             <Zap className={clsx("w-3.5 h-3.5 flex-shrink-0", explorer.activeFileId === f.id ? `${accentColor} ${persistence.settings.theme !== 'mono' ? 'fill-current' : ''}` : "text-neutral-700 group-hover:text-neutral-500")} />
@@ -499,7 +499,7 @@ export default function StarkzapIDE() {
                         starter templates
                       </div>
                       {!collapsedSections['templates'] && (
-                        <div className="max-h-[30vh] overflow-y-auto no-scrollbar space-y-0.5">
+                        <div className="max-h-[30vh] overflow-y-auto space-y-0.5">
                           {CONTRACT_TEMPLATES.map((t: (typeof CONTRACT_TEMPLATES)[0]) => (
                             <div key={t.id} onClick={() => explorer.handleLoadTemplate(t)} className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300">
                               <FileCode className={clsx("w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50")} />
@@ -515,7 +515,7 @@ export default function StarkzapIDE() {
                         artifacts
                       </div>
                       {!collapsedSections['artifacts'] && (
-                        <div className="max-h-[30vh] overflow-y-auto no-scrollbar">
+                        <div className="max-h-[30vh] overflow-y-auto">
                           {explorer.artifactFiles.length > 0 ? (
                             explorer.artifactFiles.map((f) => (
                               <div key={f.id} onClick={() => explorer.setActiveFileId(f.id)} className={clsx("group w-full flex items-center gap-2 px-6 py-1 text-xs transition-colors cursor-pointer relative", explorer.activeFileId === f.id ? "bg-sky-500/10 text-sky-300" : "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300")}>
@@ -547,7 +547,7 @@ export default function StarkzapIDE() {
                       recent deployments
                     </div>
                     {!collapsedSections['deployments'] && (
-                      <div className="max-h-[30vh] overflow-y-auto no-scrollbar">
+                      <div className="max-h-[30vh] overflow-y-auto">
                         {history.history.deployments.map((d: ContractHistoryItem) => (
                           <div key={d.id} onClick={() => {
                             const restoredAbi = normalizeAbiEntries(d.abi);
@@ -579,13 +579,13 @@ export default function StarkzapIDE() {
                     <div>
                       <div className="flex items-center justify-between mb-4"><div className="text-[10px] text-neutral-600 uppercase tracking-widest font-bold">Recent Deployments</div><Zap className="w-2.5 h-2.5 text-neutral-800" /></div>
                       {history.history.deployments.length === 0 ? <div className="text-[10px] text-neutral-700 italic border border-dashed border-neutral-900 rounded-lg p-6 text-center">No deployments found.</div> : (
-                        <div className="space-y-2 max-h-[30vh] overflow-y-auto no-scrollbar">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} onGenerateApp={() => { router.push(`/deployments/${d.id}`); }} />))}</div>
+                        <div className="space-y-2 max-h-[30vh] overflow-y-auto">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} onGenerateApp={() => { router.push(`/deployments/${d.id}`); }} />))}</div>
                       )}
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-4"><div className="text-[10px] text-neutral-600 uppercase tracking-widest font-bold">Recent Transactions</div><button onClick={() => { history.setHistory({ deployments: [], transactions: [] }); toasts.pushToast({ tone: "info", title: "History cleared", description: "Wiped." }); }} className="p-1 hover:text-white transition-colors"><RefreshCw className="w-2.5 h-2.5" /></button></div>
                       {history.history.transactions.length === 0 ? <div className="text-[10px] text-neutral-700 italic border border-dashed border-neutral-900 rounded-lg p-6 text-center">No transactions.</div> : (
-                        <div className="space-y-2 max-h-[40vh] overflow-y-auto no-scrollbar">{history.history.transactions.map((tx: TransactionHistoryItem) => (
+                        <div className="space-y-2 max-h-[40vh] overflow-y-auto">{history.history.transactions.map((tx: TransactionHistoryItem) => (
                           <div key={tx.id} className="p-2.5 rounded border border-neutral-800 bg-[#0a0a0a] group hover:border-amber-500/20 transition-all">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-[10px] font-bold text-neutral-300 uppercase">{tx.type}</span>

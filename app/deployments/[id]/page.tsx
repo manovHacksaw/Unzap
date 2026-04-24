@@ -334,6 +334,15 @@ export default function DeploymentDetailPage({ params }: { params: Promise<{ id:
     fetchDeployment();
   }, [ready, authenticated, fetchDeployment]);
 
+  // Update document title dynamically
+  useEffect(() => {
+    if (deployment) {
+      document.title = `${deployment.name || "Unnamed Contract"} | Deployment Details | Unzap`;
+    } else {
+      document.title = "Deployment Details | Unzap";
+    }
+  }, [deployment]);
+
   // Generate files (lazy – only when accordion opens)
   const loadFiles = useCallback(async () => {
     if (!deployment || filesLoaded || filesLoading) return;

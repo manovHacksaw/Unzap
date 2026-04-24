@@ -19,7 +19,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Unzap — Cairo Contract Lab",
+  title: "Unzap | Cairo Contract Lab",
   description:
     "A browser-native lab for Cairo smart contracts. Write code, compile, deploy gaslessly to Starknet, interact on-chain, and generate a typed Next.js starter.",
   manifest: "/favicon/site.webmanifest",
