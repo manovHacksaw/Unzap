@@ -49,7 +49,7 @@ export default function HeroText() {
                 </motion.span>
                 <motion.span
                     variants={lineVariants}
-                    className="block"
+                    className="block text-white"
                     style={{ fontSize: "clamp(2rem, 4.5vw, 4.5rem)" }}
                 >
                     COMPILE.{" "}

@@ -423,23 +423,27 @@ export default function StarkzapIDE() {
                       <ChevronDown className={clsx("w-3 h-3 transition-transform", collapsedSections['src'] && "-rotate-90")} />
                       src
                     </div>
-                    {!collapsedSections['src'] && explorer.sourceFiles.map((f) => (
-                      <div key={f.id} onClick={() => explorer.setActiveFileId(f.id)} onContextMenu={(e) => explorer.openContextMenu(e, f.id)} className={clsx("group w-full flex items-center gap-2 px-6 py-1 text-xs transition-colors cursor-pointer relative", explorer.activeFileId === f.id ? clsx(persistence.settings.theme === 'mono' ? "bg-white/10 text-white" : `${accentBg}/10 ${accentColor}`) : "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300")}>
-                        <Zap className={clsx("w-3.5 h-3.5 flex-shrink-0", explorer.activeFileId === f.id ? `${accentColor} ${persistence.settings.theme !== 'mono' ? 'fill-current' : ''}` : "text-neutral-700 group-hover:text-neutral-500")} />
-                        {explorer.editingFileId === f.id ? (
-                          <input autoFocus value={explorer.renameValue} onChange={(e) => explorer.setRenameValue(e.target.value)} onBlur={explorer.confirmRename} onKeyDown={(e) => e.key === "Enter" && explorer.confirmRename()} className="bg-neutral-900 border border-amber-500/50 outline-none px-1 rounded text-neutral-200 w-full" />
-                        ) : (
-                          <span className="truncate">{f.filename}</span>
-                        )}
-                        {!explorer.editingFileId && (
-                          <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={(e) => explorer.startRename(e, f)} className="p-0.5 hover:text-white"><Edit2 className="w-2.5 h-2.5" /></button>
-                            <button onClick={(e) => explorer.deleteFile(e, f.id)} className="p-0.5 hover:text-red-400"><Trash2 className="w-2.5 h-2.5" /></button>
+                    {!collapsedSections['src'] && (
+                      <div className="max-h-[30vh] overflow-y-auto no-scrollbar">
+                        {explorer.sourceFiles.map((f) => (
+                          <div key={f.id} onClick={() => explorer.setActiveFileId(f.id)} onContextMenu={(e) => explorer.openContextMenu(e, f.id)} className={clsx("group w-full flex items-center gap-2 px-6 py-1 text-xs transition-colors cursor-pointer relative", explorer.activeFileId === f.id ? clsx(persistence.settings.theme === 'mono' ? "bg-white/10 text-white" : `${accentBg}/10 ${accentColor}`) : "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300")}>
+                            <Zap className={clsx("w-3.5 h-3.5 flex-shrink-0", explorer.activeFileId === f.id ? `${accentColor} ${persistence.settings.theme !== 'mono' ? 'fill-current' : ''}` : "text-neutral-700 group-hover:text-neutral-500")} />
+                            {explorer.editingFileId === f.id ? (
+                              <input autoFocus value={explorer.renameValue} onChange={(e) => explorer.setRenameValue(e.target.value)} onBlur={explorer.confirmRename} onKeyDown={(e) => e.key === "Enter" && explorer.confirmRename()} className="bg-neutral-900 border border-amber-500/50 outline-none px-1 rounded text-neutral-200 w-full" />
+                            ) : (
+                              <span className="truncate">{f.filename}</span>
+                            )}
+                            {!explorer.editingFileId && (
+                              <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={(e) => explorer.startRename(e, f)} className="p-0.5 hover:text-white"><Edit2 className="w-2.5 h-2.5" /></button>
+                                <button onClick={(e) => explorer.deleteFile(e, f.id)} className="p-0.5 hover:text-red-400"><Trash2 className="w-2.5 h-2.5" /></button>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        ))}
+                        {explorer.sourceFiles.length === 0 && <div className="px-6 py-2 text-[10px] text-neutral-600 italic">No Cairo files yet.</div>}
                       </div>
-                    ))}
-                    {!collapsedSections['src'] && explorer.sourceFiles.length === 0 && <div className="px-6 py-2 text-[10px] text-neutral-600 italic">No Cairo files yet.</div>}
+                    )}
 
                     <div className="mt-4">
                       <div onClick={() => toggleSection('templates')} className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase text-neutral-500 mb-1 group cursor-pointer hover:bg-white/[0.02] select-none">
@@ -447,7 +451,7 @@ export default function StarkzapIDE() {
                         starter templates
                       </div>
                       {!collapsedSections['templates'] && (
-                        <div className="space-y-0.5">
+                        <div className="max-h-[30vh] overflow-y-auto no-scrollbar space-y-0.5">
                           {CONTRACT_TEMPLATES.map((t: (typeof CONTRACT_TEMPLATES)[0]) => (
                             <div key={t.id} onClick={() => explorer.handleLoadTemplate(t)} className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300">
                               <FileCode className={clsx("w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50")} />
@@ -463,25 +467,27 @@ export default function StarkzapIDE() {
                         artifacts
                       </div>
                       {!collapsedSections['artifacts'] && (
-                        explorer.artifactFiles.length > 0 ? (
-                          explorer.artifactFiles.map((f) => (
-                            <div key={f.id} onClick={() => explorer.setActiveFileId(f.id)} className={clsx("group w-full flex items-center gap-2 px-6 py-1 text-xs transition-colors cursor-pointer relative", explorer.activeFileId === f.id ? "bg-sky-500/10 text-sky-300" : "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300")}>
-                              <Box className={clsx("w-3.5 h-3.5 flex-shrink-0 transition-colors", explorer.activeFileId === f.id ? "text-sky-400" : "text-neutral-700 group-hover:text-neutral-500")} />
-                              <span className="truncate">{f.filename}</span>
+                        <div className="max-h-[30vh] overflow-y-auto no-scrollbar">
+                          {explorer.artifactFiles.length > 0 ? (
+                            explorer.artifactFiles.map((f) => (
+                              <div key={f.id} onClick={() => explorer.setActiveFileId(f.id)} className={clsx("group w-full flex items-center gap-2 px-6 py-1 text-xs transition-colors cursor-pointer relative", explorer.activeFileId === f.id ? "bg-sky-500/10 text-sky-300" : "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300")}>
+                                <Box className={clsx("w-3.5 h-3.5 flex-shrink-0 transition-colors", explorer.activeFileId === f.id ? "text-sky-400" : "text-neutral-700 group-hover:text-neutral-500")} />
+                                <span className="truncate">{f.filename}</span>
+                              </div>
+                            ))
+                          ) : persistence.isDraftHydrating ? (
+                            <div className="px-6 py-2 space-y-2">
+                              {[0, 1, 2].map((item) => (
+                                <div key={`artifact-skeleton-${item}`} className="flex items-center gap-2 py-1.5"><div className="h-3.5 w-3.5 rounded bg-neutral-900 animate-pulse" /><div className="h-3 w-full max-w-[150px] rounded bg-neutral-900 animate-pulse" /></div>
+                              ))}
                             </div>
-                          ))
-                        ) : persistence.isDraftHydrating ? (
-                          <div className="px-6 py-2 space-y-2">
-                            {[0, 1, 2].map((item) => (
-                              <div key={`artifact-skeleton-${item}`} className="flex items-center gap-2 py-1.5"><div className="h-3.5 w-3.5 rounded bg-neutral-900 animate-pulse" /><div className="h-3 w-full max-w-[150px] rounded bg-neutral-900 animate-pulse" /></div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="mx-4 rounded-lg border border-neutral-800 bg-neutral-900/40 px-3 py-3">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Saved in Browser</div>
-                            <div className="mt-2 text-[10px] leading-relaxed text-neutral-600">Files and build artifacts are stored in this browser.</div>
-                          </div>
-                        )
+                          ) : (
+                            <div className="mx-4 rounded-lg border border-neutral-800 bg-neutral-900/40 px-3 py-3">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Saved in Browser</div>
+                              <div className="mt-2 text-[10px] leading-relaxed text-neutral-600">Files and build artifacts are stored in this browser.</div>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -492,17 +498,21 @@ export default function StarkzapIDE() {
                       <ChevronDown className={clsx("w-3 h-3 transition-transform", collapsedSections['deployments'] && "-rotate-90")} />
                       recent deployments
                     </div>
-                    {!collapsedSections['deployments'] && history.history.deployments.map((d: ContractHistoryItem) => (
-                      <div key={d.id} onClick={() => {
-                        const restoredAbi = normalizeAbiEntries(d.abi);
-                        deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({});
-                        terminal.addLog(`[history] Loaded ${d.contractAddress.slice(0, 10)}... with ${restoredAbi.length} ABI entries.`);
-                        toasts.pushToast({ tone: "info", title: "Deployment restored", description: `${d.name || "Contract"} is back.` });
-                      }} className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300">
-                        <Box className="w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50" />
-                        <div className="flex flex-col truncate"><span className="truncate text-neutral-300 font-medium">{d.name || "Contract"}</span><span className="text-[9px] font-mono text-neutral-600 truncate">{d.contractAddress.slice(0, 10)}...</span></div>
+                    {!collapsedSections['deployments'] && (
+                      <div className="max-h-[30vh] overflow-y-auto no-scrollbar">
+                        {history.history.deployments.map((d: ContractHistoryItem) => (
+                          <div key={d.id} onClick={() => {
+                            const restoredAbi = normalizeAbiEntries(d.abi);
+                            deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({});
+                            terminal.addLog(`[history] Loaded ${d.contractAddress.slice(0, 10)}... with ${restoredAbi.length} ABI entries.`);
+                            toasts.pushToast({ tone: "info", title: "Deployment restored", description: `${d.name || "Contract"} is back.` });
+                          }} className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300">
+                            <Box className="w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50" />
+                            <div className="flex flex-col truncate"><span className="truncate text-neutral-300 font-medium">{d.name || "Contract"}</span><span className="text-[9px] font-mono text-neutral-600 truncate">{d.contractAddress.slice(0, 10)}...</span></div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
                 {activeSidebarTab === "search" && (
@@ -521,13 +531,13 @@ export default function StarkzapIDE() {
                     <div>
                       <div className="flex items-center justify-between mb-4"><div className="text-[10px] text-neutral-600 uppercase tracking-widest font-bold">Recent Deployments</div><Zap className="w-2.5 h-2.5 text-neutral-800" /></div>
                       {history.history.deployments.length === 0 ? <div className="text-[10px] text-neutral-700 italic border border-dashed border-neutral-900 rounded-lg p-6 text-center">No deployments found.</div> : (
-                        <div className="space-y-2">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} onGenerateApp={() => { router.push(`/deployments/${d.id}`); }} />))}</div>
+                        <div className="space-y-2 max-h-[30vh] overflow-y-auto no-scrollbar">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} onGenerateApp={() => { router.push(`/deployments/${d.id}`); }} />))}</div>
                       )}
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-4"><div className="text-[10px] text-neutral-600 uppercase tracking-widest font-bold">Recent Transactions</div><button onClick={() => { history.setHistory({ deployments: [], transactions: [] }); toasts.pushToast({ tone: "info", title: "History cleared", description: "Wiped." }); }} className="p-1 hover:text-white transition-colors"><RefreshCw className="w-2.5 h-2.5" /></button></div>
                       {history.history.transactions.length === 0 ? <div className="text-[10px] text-neutral-700 italic border border-dashed border-neutral-900 rounded-lg p-6 text-center">No transactions.</div> : (
-                        <div className="space-y-2">{history.history.transactions.map((tx: TransactionHistoryItem) => (
+                        <div className="space-y-2 max-h-[40vh] overflow-y-auto no-scrollbar">{history.history.transactions.map((tx: TransactionHistoryItem) => (
                           <div key={tx.id} className="p-2.5 rounded border border-neutral-800 bg-[#0a0a0a] group hover:border-amber-500/20 transition-all">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-[10px] font-bold text-neutral-300 uppercase">{tx.type}</span>
