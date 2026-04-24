@@ -41,7 +41,6 @@ import { motion, AnimatePresence } from "framer-motion";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Tooltip, 
   TooltipContent, 
@@ -416,7 +415,8 @@ export default function StarkzapIDE() {
               <PanelHeader title={sidebarTitleMap[activeSidebarTab] ?? activeSidebarTab}>
                 {renderSidebarActions()}
               </PanelHeader>
-              <ScrollArea className="min-h-0 flex-1" onContextMenu={(e) => explorer.openContextMenu(e, null)}>
+              <div className="flex-1 min-h-0 relative" onContextMenu={(e) => explorer.openContextMenu(e, null)}>
+              <div className="absolute inset-0 overflow-y-auto">
                 {activeSidebarTab === "explorer" && (
                   <div className="py-2">
                     <div onClick={() => toggleSection('src')} className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase text-neutral-500 mb-1 group cursor-pointer hover:bg-white/[0.02] select-none">
@@ -574,7 +574,8 @@ export default function StarkzapIDE() {
                     })()}
                   </div>
                 )}
-              </ScrollArea>
+              </div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -599,8 +600,8 @@ export default function StarkzapIDE() {
               <div className="flex h-10 bg-black/20 backdrop-blur-sm border-b border-neutral-800 overflow-x-auto flex-shrink-0 items-end px-2">
                 {[explorer.activeFile].filter(Boolean).map(f => (<div key={f!.id} className="px-3 py-1.5 bg-black/40 rounded-t-md border-t border-x border-neutral-800 flex items-center gap-2 min-w-[140px]"><FileCode className={clsx("w-3.5 h-3.5", f!.readonly ? "text-sky-400" : accentColor)} /><span className="text-xs text-foreground/90 font-medium truncate">{f!.filename}</span></div>))}
               </div>
-              <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden group">
-                  <div className="flex-1 min-h-0 relative overflow-hidden">
+              <div className="flex-1 min-h-0 relative group">
+                  <div className="absolute inset-0 overflow-auto">
                     <Editor
                       value={explorer.currentSource}
                       onChange={(val) => explorer.updateSource(val)}
