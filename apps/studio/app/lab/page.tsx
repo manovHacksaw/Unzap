@@ -338,7 +338,7 @@ export default function StarkzapIDE() {
   return (
     <TooltipProvider delayDuration={200}>
       <CursorProvider>
-      <div className="flex flex-col h-full min-h-0 bg-[#050505] text-neutral-400 font-sans overflow-hidden">
+      <div className="flex flex-col h-screen min-h-0 bg-[#050505] text-neutral-400 font-sans overflow-hidden">
       {/* ── TOP BAR ── */}
       <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-800 bg-black/40 backdrop-blur-xl flex-shrink-0 z-20 gap-4">
         <div className="flex items-center gap-4 min-w-0">
