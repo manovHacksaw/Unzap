@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
@@ -189,8 +188,8 @@ export function DeployPanel({
     : "Build your contract to continue";
 
   return (
-    <ScrollArea className="h-full">
-    <div ref={scrollRef} className="flex flex-col min-h-full bg-transparent">
+    <div className="flex-1 min-h-0 overflow-y-auto">
+    <div ref={scrollRef} className="flex flex-col bg-transparent">
 
       {/* ── Contract Header ──────────────────────────────────────────── */}
       <div className="px-5 pt-6 pb-5 border-b border-neutral-800">
@@ -684,6 +683,6 @@ export function DeployPanel({
         )}
       </div>
     </div>
-    </ScrollArea>
+    </div>
   );
 }

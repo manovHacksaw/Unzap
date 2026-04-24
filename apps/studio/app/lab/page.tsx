@@ -412,7 +412,7 @@ export default function StarkzapIDE() {
         {/* ── LEFT SIDEBAR ── */}
         <AnimatePresence initial={false}>
           {isSidebarOpen && (
-            <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 260, opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex min-h-0 flex-col border-r border-neutral-800 bg-black/20 backdrop-blur-sm overflow-hidden flex-shrink-0">
+            <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 260, opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex flex-col h-full min-h-0 border-r border-neutral-800 bg-black/20 backdrop-blur-sm overflow-hidden flex-shrink-0">
               <PanelHeader title={sidebarTitleMap[activeSidebarTab] ?? activeSidebarTab}>
                 {renderSidebarActions()}
               </PanelHeader>
@@ -424,7 +424,7 @@ export default function StarkzapIDE() {
                       src
                     </div>
                     {!collapsedSections['src'] && (
-                      <div className="max-h-[30vh] overflow-y-auto">
+                      <div>
                         {explorer.sourceFiles.map((f) => (
                           <div key={f.id} onClick={() => explorer.setActiveFileId(f.id)} onContextMenu={(e) => explorer.openContextMenu(e, f.id)} className={clsx("group w-full flex items-center gap-2 px-6 py-1 text-xs transition-colors cursor-pointer relative", explorer.activeFileId === f.id ? clsx(persistence.settings.theme === 'mono' ? "bg-white/10 text-white" : `${accentBg}/10 ${accentColor}`) : "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300")}>
                             <Zap className={clsx("w-3.5 h-3.5 flex-shrink-0", explorer.activeFileId === f.id ? `${accentColor} ${persistence.settings.theme !== 'mono' ? 'fill-current' : ''}` : "text-neutral-700 group-hover:text-neutral-500")} />
@@ -451,7 +451,7 @@ export default function StarkzapIDE() {
                         starter templates
                       </div>
                       {!collapsedSections['templates'] && (
-                        <div className="max-h-[30vh] overflow-y-auto space-y-0.5">
+                        <div className="space-y-0.5">
                           {CONTRACT_TEMPLATES.map((t: (typeof CONTRACT_TEMPLATES)[0]) => (
                             <div key={t.id} onClick={() => explorer.handleLoadTemplate(t)} className="group w-full flex items-center gap-2 px-6 py-1.5 text-[11px] transition-colors cursor-pointer text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300">
                               <FileCode className={clsx("w-3 h-3 flex-shrink-0 text-neutral-700 group-hover:text-amber-500/50")} />
@@ -467,7 +467,7 @@ export default function StarkzapIDE() {
                         artifacts
                       </div>
                       {!collapsedSections['artifacts'] && (
-                        <div className="max-h-[30vh] overflow-y-auto">
+                        <div>
                           {explorer.artifactFiles.length > 0 ? (
                             explorer.artifactFiles.map((f) => (
                               <div key={f.id} onClick={() => explorer.setActiveFileId(f.id)} className={clsx("group w-full flex items-center gap-2 px-6 py-1 text-xs transition-colors cursor-pointer relative", explorer.activeFileId === f.id ? "bg-sky-500/10 text-sky-300" : "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300")}>
@@ -499,7 +499,7 @@ export default function StarkzapIDE() {
                       recent deployments
                     </div>
                     {!collapsedSections['deployments'] && (
-                      <div className="max-h-[30vh] overflow-y-auto">
+                      <div>
                         {history.history.deployments.map((d: ContractHistoryItem) => (
                           <div key={d.id} onClick={() => {
                             const restoredAbi = normalizeAbiEntries(d.abi);
@@ -531,13 +531,13 @@ export default function StarkzapIDE() {
                     <div>
                       <div className="flex items-center justify-between mb-4"><div className="text-[10px] text-neutral-600 uppercase tracking-widest font-bold">Recent Deployments</div><Zap className="w-2.5 h-2.5 text-neutral-800" /></div>
                       {history.history.deployments.length === 0 ? <div className="text-[10px] text-neutral-700 italic border border-dashed border-neutral-900 rounded-lg p-6 text-center">No deployments found.</div> : (
-                        <div className="space-y-2 max-h-[30vh] overflow-y-auto">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} onGenerateApp={() => { router.push(`/deployments/${d.id}`); }} />))}</div>
+                        <div className="space-y-2">{history.history.deployments.map((d: ContractHistoryItem) => (<HistoryDeploymentCard key={d.id} deployment={d} onInteract={() => { const restoredAbi = normalizeAbiEntries(d.abi); deploy.setContractAddress(d.contractAddress); deploy.setClassHash(d.classHash); deploy.setDeployStatus("deployed"); deploy.setDeploySteps([]); deploy.setConstructorInputs({}); setActiveSidebarTab("interact"); setIsSidebarOpen(true); terminal.addLog(`[history] Restored: ${d.contractAddress.slice(0, 10)}...`); toasts.pushToast({ tone: "info", title: "Interface restored", description: "Ready." }); }} onGenerateApp={() => { router.push(`/deployments/${d.id}`); }} />))}</div>
                       )}
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-4"><div className="text-[10px] text-neutral-600 uppercase tracking-widest font-bold">Recent Transactions</div><button onClick={() => { history.setHistory({ deployments: [], transactions: [] }); toasts.pushToast({ tone: "info", title: "History cleared", description: "Wiped." }); }} className="p-1 hover:text-white transition-colors"><RefreshCw className="w-2.5 h-2.5" /></button></div>
                       {history.history.transactions.length === 0 ? <div className="text-[10px] text-neutral-700 italic border border-dashed border-neutral-900 rounded-lg p-6 text-center">No transactions.</div> : (
-                        <div className="space-y-2 max-h-[40vh] overflow-y-auto">{history.history.transactions.map((tx: TransactionHistoryItem) => (
+                        <div className="space-y-2">{history.history.transactions.map((tx: TransactionHistoryItem) => (
                           <div key={tx.id} className="p-2.5 rounded border border-neutral-800 bg-[#0a0a0a] group hover:border-amber-500/20 transition-all">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-[10px] font-bold text-neutral-300 uppercase">{tx.type}</span>
@@ -589,7 +589,7 @@ export default function StarkzapIDE() {
         )}
 
         {/* ── CENTER AREA ── */}
-        <div ref={centerPaneRef} className="flex-1 flex flex-col overflow-hidden bg-[#050505] relative cursor-text">
+        <div ref={centerPaneRef} className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#050505] relative cursor-text">
           {activeSidebarTab === "interact" ? (
             <div className="flex-1 overflow-y-auto p-12">
               <InteractPanel contractAddress={deploy.contractAddress} abi={explorer.activeBuildData?.abi ?? []} account={wallet.starknetAccount} szWallet={wallet.szWallet} walletType={wallet.walletType} walletAddress={wallet.walletAddress} strkBalance={wallet.strkBalance} isFetchingBalance={wallet.isFetchingBalance} fetchStrkBalance={wallet.fetchStrkBalance} network={network} handleNetworkSwitch={handleNetworkSwitch} addLog={terminal.addLog} provider={sdkRef.current?.getProvider() as unknown as ProviderInterface | null} netConfig={netConfig} logTransaction={history.logTransaction} onRequestWallet={() => wallet.setShowAuthModal(true)} recentDeployments={history.history.deployments} layout="fullscreen" activeFileName={explorer.activeFile?.filename} notify={toasts.pushToast} onGetStarterApp={handleGenerateApp} />
@@ -599,8 +599,8 @@ export default function StarkzapIDE() {
               <div className="flex h-10 bg-black/20 backdrop-blur-sm border-b border-neutral-800 overflow-x-auto flex-shrink-0 items-end px-2">
                 {[explorer.activeFile].filter(Boolean).map(f => (<div key={f!.id} className="px-3 py-1.5 bg-black/40 rounded-t-md border-t border-x border-neutral-800 flex items-center gap-2 min-w-[140px]"><FileCode className={clsx("w-3.5 h-3.5", f!.readonly ? "text-sky-400" : accentColor)} /><span className="text-xs text-foreground/90 font-medium truncate">{f!.filename}</span></div>))}
               </div>
-              <div className="flex-1 relative overflow-hidden group">
-                  <div className="relative flex-1 h-full overflow-hidden">
+              <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden group">
+                  <div className="flex-1 min-h-0 relative overflow-hidden">
                     <Editor
                       value={explorer.currentSource}
                       onChange={(val) => explorer.updateSource(val)}
@@ -629,9 +629,9 @@ export default function StarkzapIDE() {
         {/* ── RIGHT PANEL ── */}
         <AnimatePresence initial={false}>
           {isRightPanelOpen && activeSidebarTab !== "interact" && (
-            <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: layout.rightPanelWidth, opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex flex-shrink-0 overflow-hidden">
+            <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: layout.rightPanelWidth, opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex flex-shrink-0 min-h-0 overflow-hidden">
               <div onMouseDown={() => layout.setIsResizingRightPanel(true)} className={clsx("w-1 cursor-col-resize", layout.isResizingRightPanel ? "bg-amber-500/40" : "bg-neutral-800 hover:bg-amber-500/50")} />
-              <div className="flex flex-col flex-1 border-l border-neutral-800 bg-black/20 backdrop-blur-sm overflow-hidden">
+              <div className="flex flex-col flex-1 min-h-0 border-l border-neutral-800 bg-black/20 backdrop-blur-sm overflow-hidden">
                 <div className="flex items-center h-10 px-5 bg-black/40 border-b border-neutral-800 justify-between"><span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/60">Deploy</span><div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /><span className="text-[9px] text-muted-foreground uppercase tracking-wider">Live</span></div></div>
                 <DeployPanel activeFile={explorer.activeFile} activeBuildData={explorer.activeBuildData} buildStatus={buildStatus} network={network} netConfig={netConfig} handleNetworkSwitch={handleNetworkSwitch} starknetAccount={wallet.starknetAccount} walletAddress={wallet.walletAddress} walletType={wallet.walletType} disconnectWallet={wallet.disconnectWallet} strkBalance={wallet.strkBalance} isFetchingBalance={wallet.isFetchingBalance} fetchStrkBalance={wallet.fetchStrkBalance} setShowAuthModal={wallet.setShowAuthModal} deployStatus={deploy.deployStatus} deploySteps={deploy.deploySteps} classHash={deploy.classHash} contractAddress={deploy.contractAddress} constructorInputs={deploy.constructorInputs} setConstructorInputs={deploy.setConstructorInputs} salt={deploy.salt} setSalt={deploy.setSalt} handleDeclare={deploy.handleDeclare} handleDeploy={deploy.handleDeploy} onReset={deploy.resetDeployState} isWalletConnecting={wallet.isWalletConnecting} notify={toasts.pushToast} onGetStarterApp={handleGenerateApp} />
               </div>
