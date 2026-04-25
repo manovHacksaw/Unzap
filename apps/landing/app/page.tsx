@@ -37,6 +37,7 @@ const APP = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.unzap.xyz";
 const resourceLinks = [
   { label: "Studio Hub",   href: `${APP}/studio`,              external: true },
   { label: "Contract Lab", href: `${APP}/studio/contract-lab`, external: true },
+  { label: "Documentation", href: "/docs",                     external: false },
   { label: "GitHub",       href: "https://github.com/manovHacksaw/Unzap", external: true },
 ];
 
