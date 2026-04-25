@@ -10,6 +10,7 @@ const navLinks = [
     { label: "CONTRACT LAB", href: APP, external: true },
     { label: "PROJECTS",     href: `${APP}/deployments`,         external: true },
     { label: "STUDIO",       href: `${APP}/studio`,              external: true },
+    { label: "DOCS",         href: "/docs" },
     { label: "WORKFLOW",     href: "/#solutions" },
     { label: "GITHUB",       href: "https://github.com/manovHacksaw/Unzap", external: true },
     { label: "X",            href: "https://x.com/manovmandal",             external: true },
